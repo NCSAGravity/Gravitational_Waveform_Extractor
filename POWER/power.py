@@ -283,6 +283,7 @@ def get_energy(sim):
 	val = val.astype(np.complex_)
 	cur_max_time = python_strain[0][0]
 	cur_max_amp = abs(pow(python_strain[0][1], 2))
+	# TODO: rewrite as array operations (use numpy.argmax)
 	for i in python_strain[:]:
 		cur_time = i[0]
 		cur_amp = abs(pow(i[1], 2))
@@ -311,6 +312,7 @@ def get_energy(sim):
 		prod = np.multiply(dh, dh_conj)
 		local_val = np.zeros(len(t))
 		local_val = local_val.astype(np.complex_)
+                # TODO: rewrite as array notation using numpy.cumtrapz
 		for i in range(0, len(t)):
 			local_val[i] = np.trapz(prod[:i], x=(t[:i]))
 		val += local_val
@@ -329,6 +331,7 @@ def get_angular_momentum(python_strain):
 	val = val.astype(np.complex_)
 	cur_max_time = python_strain[0][0]
 	cur_max_amp = abs(pow(python_strain[0][1], 2))
+	# TODO: rewrite as array operations (use numpy.argmax)
 	for i in python_strain[:]:
 		cur_time = i[0]
 		cur_amp = abs(pow(i[1], 2))
@@ -349,6 +352,7 @@ def get_angular_momentum(python_strain):
 		t = t.astype(np.complex_)
 		h = python_strain[:, 1] + 1j * python_strain[:, 2]
 		dh = np.zeros(len(t), dtype=np.complex_) 
+                # TODO: rewrite using array notation
 		for i in range(0, len(t)-1):
 			dh[i] = ((h[i+1] - h[i])/(t[i+1] - t[i]))
 		dh[len(t)-1] = dh[len(t)-2]
@@ -357,6 +361,7 @@ def get_angular_momentum(python_strain):
 		prod = np.multiply(h, dh_conj)
 		local_val = np.zeros(len(t))
 		local_val = local_val.astype(np.complex_)
+                # TODO: rewrite as array notation using numpy.cumtrapz. Move atoi call out of inner loop.
 		for i in range(0, len(t)):
 			local_val[i] = np.trapz(prod[:i], x=(t[:i])) * int(((path.split("_")[-1]).split("m")[-1]).split(".")[0])
 		val += local_val
