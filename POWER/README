@@ -12,3 +12,7 @@ POWER is an open source, python package to monitor the status and progress of
 numerical relativity simulations, and to post-process the data products of
 these simulations to compute the gravitational wave strain at future null
 infinity.
+
+To run POWER on the example dataset, do:
+
+./power.py simulations/J0040_N40
