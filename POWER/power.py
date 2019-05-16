@@ -126,7 +126,9 @@ def psi4ToStrain(mp_psi4, f0):
 	hf = ffi(freq, dhf, f0)
 
 	time, h = myFourierTransformInverse(freq, hf, t0[0])
-	hTable = np.column_stack((time, h))
+        # we have d^2(h+ -i hx)/dt^2 = psi4 ie the sign of the imaginary part
+        # needs to be flipped
+	hTable = np.column_stack((time, h.conj()))
 	return hTable
 
 #Fixed frequency integration
