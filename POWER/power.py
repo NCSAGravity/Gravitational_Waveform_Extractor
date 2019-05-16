@@ -485,8 +485,6 @@ if __name__ == "__main__":
 
                             #Get phase and amplitude of strain
                             h_phase = np.unwrap(np.angle(h))
-                            while(h_phase[0] < 0):
-                                    h_phase[:] += 2*math.pi
                             angleTable = np.column_stack((time, h_phase))
                             angleTable = angleTable.astype(float)
                             phase.append(angleTable)
@@ -514,8 +512,10 @@ if __name__ == "__main__":
                     for i in range(0, radiiUsedForExtrapolation):
                             interp_function = scipy.interpolate.interp1d(phase[i][:, 0], phase[i][:, 1], kind=interpolation_order)
                             resampled_phase_vals = interp_function(t)
-                            while(resampled_phase_vals[0] < 0):
-                                    resampled_phase_vals[:] += 2*math.pi
+                            # try and keep all initial phases within 2pi of each other
+                            if(i > 0):
+                                phase_shift = round((resampled_phase_vals[0] - phase[0][0,1])/(2.*math.pi))*2.*math.pi
+                                resampled_phase_vals -= phase_shift
                             phase[i] = np.column_stack((t, resampled_phase_vals))
                             interp_function = scipy.interpolate.interp1d(amp[i][:, 0], amp[i][:, 1], kind=interpolation_order)
                             resampled_amp_vals = interp_function(t)
