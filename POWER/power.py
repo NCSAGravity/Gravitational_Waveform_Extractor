@@ -390,7 +390,7 @@ if __name__ == "__main__":
 
     for sim_path in paths:
             main_dir = sim_path
-            sim = sim_path.split("/")[-1]
+            sim = os.path.split(sim_path)[-1]
 
             simdirs = main_dir+"/output-????/%s/" % (sim)
             f0 = getCutoffFrequency(sim)
