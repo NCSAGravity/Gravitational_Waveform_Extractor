@@ -144,8 +144,8 @@ def ffi(freq, data, f0):
 	f1 = f0/(2*math.pi)
 	fs = freq
 	gs = data
-	mask1 = (np.sign((fs/f1) - 1) + 1)/2
-	mask2 = (np.sign((-fs/f1) - 1) + 1)/2
+	mask1 = (np.sign((fs/f1) - 1) + 1)/2.
+	mask2 = (np.sign((-fs/f1) - 1) + 1)/2.
 	mask = 1 - (1 - mask1) * (1 - mask2)
 	fs2 = mask * fs + (1-mask) * f1 * np.sign(fs - np.finfo(float).eps)
 	new_gs = gs/(2*math.pi*1.j*fs2)
@@ -161,7 +161,7 @@ def myFourierTransform(t0, complexPsi):
 	"""
 	psif = np.fft.fft(complexPsi, norm="ortho")
 	l = len(complexPsi)
-	n = int(math.floor(l/2))
+	n = int(math.floor(l/2.))
 	newpsif = psif[l-n:]
 	newpsif = np.append(newpsif, psif[:l-n])
 	T = np.amin(np.diff(t0))*l
@@ -171,7 +171,7 @@ def myFourierTransform(t0, complexPsi):
 #Inverse Fourier Transform
 def myFourierTransformInverse(freq, hf, t0):
 	l = len(hf)
-	n = int(math.floor(l/2))
+	n = int(math.floor(l/2.))
 	newhf = hf[n:]
 	newhf = np.append(newhf, hf[:n])
 	amp = np.fft.ifft(newhf, norm="ortho")
@@ -180,8 +180,8 @@ def myFourierTransformInverse(freq, hf, t0):
 	return time, amp
 
 def angular_momentum(x, q, m, chi1, chi2, LInitNR):
-	eta = q/(1.+q)**2.
-	m1 = (1.+(1.-4.*eta)**0.5)/2.
+	eta = q/(1.+q)**2
+	m1 = (1.+sqrt(1.-4.*eta))/2.
 	m2 = m - m1
 	S1 = m1**2. * chi1
 	S2 = m2**2. * chi2
@@ -265,8 +265,8 @@ def getCutoffFrequency(sim_name):
 	LInitNR = xp*pyp + xm*pym
 	M = m1+m2
 	q = m1/m2
-	chi1 = S1/math.pow(m1, 2.)
-	chi2 = S2/math.pow(m2, 2.)
+	chi1 = S1/m1**2
+	chi2 = S2/m2**2
 	# .014 is the initial guess for cutoff frequency
 	omOrbPN = scipy.optimize.fsolve(angular_momentum, .014, (q, M, chi1, chi2, LInitNR))[0]
 	omOrbPN = omOrbPN**(3./2.)
