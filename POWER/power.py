@@ -181,7 +181,7 @@ def myFourierTransformInverse(freq, hf, t0):
 
 def angular_momentum(x, q, m, chi1, chi2, LInitNR):
 	eta = q/(1.+q)**2
-	m1 = (1.+sqrt(1.-4.*eta))/2.
+	m1 = (1.+math.sqrt(1.-4.*eta))/2.
 	m2 = m - m1
 	S1 = m1**2. * chi1
 	S2 = m2**2. * chi2
