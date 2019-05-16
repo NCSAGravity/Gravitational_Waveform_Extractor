@@ -91,7 +91,7 @@ def loadHDF5Series(nameglob, series):
 	series = HDF5 dataset name of dataset to load from files"""
 	dsets = list()
 	for fn in sorted(glob.glob(nameglob)):
-		fh = h5py.File(fn)
+		fh = h5py.File(fn, "r")
 		dsets.append(fh[series])
 	return joinDsets(dsets)
 
