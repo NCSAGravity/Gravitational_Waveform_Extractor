@@ -393,11 +393,34 @@ if __name__ == "__main__":
             simdirs = main_dir+"/output-????/%s/" % (sim)
             f0 = getCutoffFrequency(sim)
 
-            #Check if necessary files exist
-            par_file = main_dir+"/output-0000/%s.par" % (sim)
-            two_punctures_file = main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim)
-            if(not os.path.isfile(par_file) or not os.path.isfile(two_punctures_file)):
-                    continue
+            #Get simulation total mass
+            ADMMass = None
+            two_punctures_files = sorted(glob.glob(main_dir+"/output-????/%s/TwoPunctures.bbh" % (sim)))
+            out_files = sorted(glob.glob(main_dir+"/output-????/%s.out" % (sim)))
+            par_files = sorted(glob.glob(main_dir+"/output-????/%s.par" % (sim)))
+	    if(two_punctures_files):
+  	      two_punctures_file = two_punctures_files[0]
+              with open(two_punctures_file) as file:
+                    contents = file.readlines()
+                    for line in contents:
+                            line_elems = line.split(" ")
+                            if(line_elems[0] == "initial-ADM-energy"):
+                                    ADMMass = float(line_elems[-1])
+	    elif(out_files):
+              out_file = out_files[0]
+              with open(out_file) as file:
+                    contents = file.readlines()
+                    for line in contents:
+			     m = re.match("INFO \(TwoPunctures\): The total ADM mass is (.*)", line)
+			     if(m):
+				ADMMass = float(m.group(1))
+            elif(par_files):
+  	        par_file = par_files[0]
+		print("Not yet implemented")
+		raise ValueError
+	    else:
+		print("Cannot determine ADM mass")
+		raise ValueError
 
             #Create data directories
             main_directory = "Extrapolated_Strain"
@@ -406,16 +429,6 @@ if __name__ == "__main__":
                     os.makedirs(main_directory)
             if not os.path.exists(sim_dir):
                     os.makedirs(sim_dir)
-
-            #Get ADMMass
-            ADMMass = -1
-            filename = main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim)
-            with open(filename) as file:
-                    contents = file.readlines()
-                    for line in contents:
-                            line_elems = line.split(" ")
-                            if(line_elems[0] == "initial-ADM-energy"):
-                                    ADMMass = float(line_elems[-1])
 
             # TODO: fix this. It will fail if output-0000 does not contain any mp
             # output and also will open the output files multiple times
