@@ -1,5 +1,3 @@
-###########THIS IS A TEST TO SEE IF I KNOW WHAT I'M DOING
-
 #!/usr/bin/env python
 
 # Copyright (c) 2017 The Board of Trustees of the University of Illinois
