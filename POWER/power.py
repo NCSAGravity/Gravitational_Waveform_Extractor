@@ -452,126 +452,127 @@ if __name__ == "__main__":
                     radii = sorted(radii)
 
             #Get Psi4
-            for (l,m) in modes:
-                    mp_psi4_vars = []
-                    for radius in radii:
-                            psi4dsetname = dsets[(radius, (l,m))]
-                            mp_psi4 = loadHDF5Series(simdirs+"mp_psi4.h5", psi4dsetname)
-                            mp_psi4_vars.append(mp_psi4)
-
-                    #Get Tortoise Coordinate
-                    tortoise = []
-                    for radius in radii:
-                            tortoise.append(-RadialToTortoise(radius, ADMMass))
-
-                    strain = []
-                    phase = []
-                    amp = []
-                    for i in range(len(radii)):
-                            #Get modified Psi4 (Multiply real and imaginary psi4 columns by radii and add the tortoise coordinate to the time colum)
-                            mp_psi4_vars[i][:, 0] += tortoise[i]
-                            mp_psi4_vars[i][:, 1] *= radii[i]
-                            mp_psi4_vars[i][:, 2] *= radii[i]
-
-                            #Check for psi4 amplitude going to zero
-                            cur_psi4_amp = np.sqrt(mp_psi4_vars[i][0, 1]**2 + mp_psi4_vars[i][0, 2]**2)
-                            min_psi4_amp = cur_psi4_amp
-                            # TODO: use array notatino for this since it finds the minimum amplitude
-                            for j in range(0, len(mp_psi4_vars[i][:, 0])):
-                                    cur_psi4_amp = np.sqrt(mp_psi4_vars[i][j, 1]**2 + mp_psi4_vars[i][j, 2]**2)
-                                    if(cur_psi4_amp < min_psi4_amp):
-                                            min_psi4_amp = cur_psi4_amp
-                            if(min_psi4_amp < np.finfo(float).eps and l >= 2):
-                                    print("The psi4 amplitude is near zero. The phase is ill-defined.")
-
-                            #Fixed-frequency integration twice to get strain
-                            hTable = psi4ToStrain(mp_psi4_vars[i], f0)
-                            time = hTable[:, 0]
-                            h = hTable[:, 1]
-                            hplus = h.real
-                            hcross = h.imag
-                            newhTable = np.column_stack((time, hplus, hcross))
-                            warnings.filterwarnings('ignore')
-                            finalhTable = newhTable.astype(float)
-                            np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_strain_at_"+str(radii[i])+"_l"+str(l)+"_m"+str(m)+".dat", finalhTable)
-                            strain.append(finalhTable)
-
-                            #Get phase and amplitude of strain
-                            h_phase = np.unwrap(np.angle(h))
-                            angleTable = np.column_stack((time, h_phase))
-                            angleTable = angleTable.astype(float)
-                            phase.append(angleTable)
-                            h_amp = np.absolute(h)
-                            ampTable = np.column_stack((time, h_amp))
-                            ampTable = ampTable.astype(float)
-                            amp.append(ampTable)
-
-                    #Interpolate phase and amplitude
-                    t = phase[0][:, 0]
-                    last_t = phase[radiiUsedForExtrapolation - 1][-1, 0]
-                    last_index = 0;
-                    # TODO: use array notation for this (this is a boolean
-                    # plus a first_of or so)
-                    for i in range(0, len(phase[0][:, 0])):
-                            if(t[i] > last_t):
-                                    last_index = i
-                                    break
-                    last_index = last_index-1
-                    t = phase[0][0:last_index, 0]
-                    dts = t[1:] - t[:-1]
-                    dt = float(np.amin(dts))
-                    t = np.arange(phase[0][0, 0], phase[0][last_index, 0], dt)
-                    interpolation_order = 9
-                    for i in range(0, radiiUsedForExtrapolation):
-                            interp_function = scipy.interpolate.interp1d(phase[i][:, 0], phase[i][:, 1], kind=interpolation_order)
-                            resampled_phase_vals = interp_function(t)
-                            # try and keep all initial phases within 2pi of each other
-                            if(i > 0):
-                                phase_shift = round((resampled_phase_vals[0] - phase[0][0,1])/(2.*math.pi))*2.*math.pi
-                                resampled_phase_vals -= phase_shift
-                            phase[i] = np.column_stack((t, resampled_phase_vals))
-                            interp_function = scipy.interpolate.interp1d(amp[i][:, 0], amp[i][:, 1], kind=interpolation_order)
-                            resampled_amp_vals = interp_function(t)
-                            amp[i] = np.column_stack((t, resampled_amp_vals))
-
-                    #Extrapolate
-                    phase_extrapolation_order = 1
-                    amp_extrapolation_order = 2
-                    radii = np.asarray(radii, dtype=float)
-                    radii = radii[0:radiiUsedForExtrapolation]
-                    # TODO: replace by np.ones (which is all it does anyway)
-                    A_phase = np.power(radii, 0)
-                    A_amp = np.power(radii, 0)
-                    for i in range(1, phase_extrapolation_order+1):
-                            A_phase = np.column_stack((A_phase, np.power(radii, -1*i)))
-
-                    for i in range(1, amp_extrapolation_order+1):
-                            A_amp = np.column_stack((A_amp, np.power(radii, -1*i)))
-
-                    radially_extrapolated_phase = np.empty(0)
-                    radially_extrapolated_amp = np.empty(0)
-                    for i in range(0, len(t)):
-                            b_phase = np.empty(0)
-                            for j in range(0, radiiUsedForExtrapolation):
-                                    b_phase = np.append(b_phase, phase[j][i, 1])
-                            x_phase = np.linalg.lstsq(A_phase, b_phase)[0]
-                            radially_extrapolated_phase = np.append(radially_extrapolated_phase, x_phase[0])
-
-                            b_amp = np.empty(0)
-                            for j in range(0, radiiUsedForExtrapolation):
-                                    b_amp = np.append(b_amp, amp[j][i, 1])
-                            x_amp = np.linalg.lstsq(A_amp, b_amp)[0]
-                            radially_extrapolated_amp = np.append(radially_extrapolated_amp, x_amp[0])
-
-                    radially_extrapolated_h_plus = np.empty(0)
-                    radially_extrapolated_h_cross = np.empty(0)
-                    for i in range(0, len(radially_extrapolated_amp)):
-                            radially_extrapolated_h_plus = np.append(radially_extrapolated_h_plus, radially_extrapolated_amp[i] * math.cos(radially_extrapolated_phase[i]))
-                            radially_extrapolated_h_cross = np.append(radially_extrapolated_h_cross, radially_extrapolated_amp[i] * math.sin(radially_extrapolated_phase[i]))
-
-                    np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_h_plus, radially_extrapolated_h_cross)))
-                    np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_amplitude_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_amp)))
-                    np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_phase_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_phase[:])))
+            def Get_Psi4(modes, radii):
+                for (l,m) in modes:
+                        mp_psi4_vars = []
+                        for radius in radii:
+                                psi4dsetname = dsets[(radius, (l,m))]
+                                mp_psi4 = loadHDF5Series(simdirs+"mp_psi4.h5", psi4dsetname)
+                                mp_psi4_vars.append(mp_psi4)
+    
+                        #Get Tortoise Coordinate
+                        tortoise = []
+                        for radius in radii:
+                                tortoise.append(-RadialToTortoise(radius, ADMMass))
+    
+                        strain = []
+                        phase = []
+                        amp = []
+                        for i in range(len(radii)):
+                                #Get modified Psi4 (Multiply real and imaginary psi4 columns by radii and add the tortoise coordinate to the time colum)
+                                mp_psi4_vars[i][:, 0] += tortoise[i]
+                                mp_psi4_vars[i][:, 1] *= radii[i]
+                                mp_psi4_vars[i][:, 2] *= radii[i]
+    
+                                #Check for psi4 amplitude going to zero
+                                cur_psi4_amp = np.sqrt(mp_psi4_vars[i][0, 1]**2 + mp_psi4_vars[i][0, 2]**2)
+                                min_psi4_amp = cur_psi4_amp
+                                # TODO: use array notatino for this since it finds the minimum amplitude
+                                for j in range(0, len(mp_psi4_vars[i][:, 0])):
+                                        cur_psi4_amp = np.sqrt(mp_psi4_vars[i][j, 1]**2 + mp_psi4_vars[i][j, 2]**2)
+                                        if(cur_psi4_amp < min_psi4_amp):
+                                                min_psi4_amp = cur_psi4_amp
+                                if(min_psi4_amp < np.finfo(float).eps and l >= 2):
+                                        print("The psi4 amplitude is near zero. The phase is ill-defined.")
+    
+                                #Fixed-frequency integration twice to get strain
+                                hTable = psi4ToStrain(mp_psi4_vars[i], f0)
+                                time = hTable[:, 0]
+                                h = hTable[:, 1]
+                                hplus = h.real
+                                hcross = h.imag
+                                newhTable = np.column_stack((time, hplus, hcross))
+                                warnings.filterwarnings('ignore')
+                                finalhTable = newhTable.astype(float)
+                                np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_strain_at_"+str(radii[i])+"_l"+str(l)+"_m"+str(m)+".dat", finalhTable)
+                                strain.append(finalhTable)
+    
+                                #Get phase and amplitude of strain
+                                h_phase = np.unwrap(np.angle(h))
+                                angleTable = np.column_stack((time, h_phase))
+                                angleTable = angleTable.astype(float)
+                                phase.append(angleTable)
+                                h_amp = np.absolute(h)
+                                ampTable = np.column_stack((time, h_amp))
+                                ampTable = ampTable.astype(float)
+                                amp.append(ampTable)
+    
+                        #Interpolate phase and amplitude
+                        t = phase[0][:, 0]
+                        last_t = phase[radiiUsedForExtrapolation - 1][-1, 0]
+                        last_index = 0;
+                        # TODO: use array notation for this (this is a boolean
+                        # plus a first_of or so)
+                        for i in range(0, len(phase[0][:, 0])):
+                                if(t[i] > last_t):
+                                        last_index = i
+                                        break
+                        last_index = last_index-1
+                        t = phase[0][0:last_index, 0]
+                        dts = t[1:] - t[:-1]
+                        dt = float(np.amin(dts))
+                        t = np.arange(phase[0][0, 0], phase[0][last_index, 0], dt)
+                        interpolation_order = 9
+                        for i in range(0, radiiUsedForExtrapolation):
+                                interp_function = scipy.interpolate.interp1d(phase[i][:, 0], phase[i][:, 1], kind=interpolation_order)
+                                resampled_phase_vals = interp_function(t)
+                                # try and keep all initial phases within 2pi of each other
+                                if(i > 0):
+                                    phase_shift = round((resampled_phase_vals[0] - phase[0][0,1])/(2.*math.pi))*2.*math.pi
+                                    resampled_phase_vals -= phase_shift
+                                phase[i] = np.column_stack((t, resampled_phase_vals))
+                                interp_function = scipy.interpolate.interp1d(amp[i][:, 0], amp[i][:, 1], kind=interpolation_order)
+                                resampled_amp_vals = interp_function(t)
+                                amp[i] = np.column_stack((t, resampled_amp_vals))
+    
+                        #Extrapolate
+                        phase_extrapolation_order = 1
+                        amp_extrapolation_order = 2
+                        radii = np.asarray(radii, dtype=float)
+                        radii = radii[0:radiiUsedForExtrapolation]
+                        # TODO: replace by np.ones (which is all it does anyway)
+                        A_phase = np.power(radii, 0)
+                        A_amp = np.power(radii, 0)
+                        for i in range(1, phase_extrapolation_order+1):
+                                A_phase = np.column_stack((A_phase, np.power(radii, -1*i)))
+    
+                        for i in range(1, amp_extrapolation_order+1):
+                                A_amp = np.column_stack((A_amp, np.power(radii, -1*i)))
+    
+                        radially_extrapolated_phase = np.empty(0)
+                        radially_extrapolated_amp = np.empty(0)
+                        for i in range(0, len(t)):
+                                b_phase = np.empty(0)
+                                for j in range(0, radiiUsedForExtrapolation):
+                                        b_phase = np.append(b_phase, phase[j][i, 1])
+                                x_phase = np.linalg.lstsq(A_phase, b_phase)[0]
+                                radially_extrapolated_phase = np.append(radially_extrapolated_phase, x_phase[0])
+    
+                                b_amp = np.empty(0)
+                                for j in range(0, radiiUsedForExtrapolation):
+                                        b_amp = np.append(b_amp, amp[j][i, 1])
+                                x_amp = np.linalg.lstsq(A_amp, b_amp)[0]
+                                radially_extrapolated_amp = np.append(radially_extrapolated_amp, x_amp[0])
+    
+                        radially_extrapolated_h_plus = np.empty(0)
+                        radially_extrapolated_h_cross = np.empty(0)
+                        for i in range(0, len(radially_extrapolated_amp)):
+                                radially_extrapolated_h_plus = np.append(radially_extrapolated_h_plus, radially_extrapolated_amp[i] * math.cos(radially_extrapolated_phase[i]))
+                                radially_extrapolated_h_cross = np.append(radially_extrapolated_h_cross, radially_extrapolated_amp[i] * math.sin(radially_extrapolated_phase[i]))
+    
+                        np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_h_plus, radially_extrapolated_h_cross)))
+                        np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_amplitude_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_amp)))
+                        np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_phase_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_phase[:])))
 
             get_energy(sim)
             get_angular_momentum(sim)
