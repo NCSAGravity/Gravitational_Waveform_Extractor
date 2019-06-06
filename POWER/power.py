@@ -454,21 +454,28 @@ if __name__ == "__main__":
             #Get Psi4
             def Get_Psi4(modes, radii):
                 for (l,m) in modes:
-                        mp_psi4_vars = []
-                        for radius in radii:
-                                psi4dsetname = dsets[(radius, (l,m))]
-                                mp_psi4 = loadHDF5Series(simdirs+"mp_psi4.h5", psi4dsetname)
-                                mp_psi4_vars.append(mp_psi4)
-    
+                    
+                            
                         #Get Tortoise Coordinate
-                        tortoise = []
-                        for radius in radii:
-                                tortoise.append(-RadialToTortoise(radius, ADMMass))
-    
+                        mp_psi4_vars = []
+                        tortoise = []    
                         strain = []
                         phase = []
                         amp = []
                         for i in range(len(radii)):
+                                #------------------------------------------------
+                                # Read in HDF5 data
+                                #------------------------------------------------                 
+                                psi4dsetname = dsets[(radius, (l,m))]
+                                mp_psi4 = loadHDF5Series(simdirs+"mp_psi4.h5", psi4dsetname)
+                                mp_psi4_vars.append(mp_psi4)
+                                #------------------------------------------------
+                                # Coordinate conversion to Torus
+                                #------------------------------------------------
+                                tortoise.append(-RadialToTortoise(radius, ADMMass))
+                                #-----------------------------------------
+                                # Prepare for conversion to strain
+                                #-----------------------------------------
                                 #Get modified Psi4 (Multiply real and imaginary psi4 columns by radii and add the tortoise coordinate to the time colum)
                                 mp_psi4_vars[i][:, 0] += tortoise[i]
                                 mp_psi4_vars[i][:, 1] *= radii[i]
@@ -486,6 +493,9 @@ if __name__ == "__main__":
                                         print("The psi4 amplitude is near zero. The phase is ill-defined.")
     
                                 #Fixed-frequency integration twice to get strain
+                                #-----------------------------------------------------------------
+                                # Strain Conversion
+                                #-----------------------------------------------------------------
                                 hTable = psi4ToStrain(mp_psi4_vars[i], f0)
                                 time = hTable[:, 0]
                                 h = hTable[:, 1]
@@ -496,7 +506,10 @@ if __name__ == "__main__":
                                 finalhTable = newhTable.astype(float)
                                 np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_strain_at_"+str(radii[i])+"_l"+str(l)+"_m"+str(m)+".dat", finalhTable)
                                 strain.append(finalhTable)
-    
+                                
+                                #-------------------------------------------------------------------
+                                # Analysis of Strain
+                                #-------------------------------------------------------------------
                                 #Get phase and amplitude of strain
                                 h_phase = np.unwrap(np.angle(h))
                                 angleTable = np.column_stack((time, h_phase))
@@ -506,7 +519,10 @@ if __name__ == "__main__":
                                 ampTable = np.column_stack((time, h_amp))
                                 ampTable = ampTable.astype(float)
                                 amp.append(ampTable)
-    
+                        
+                        #----------------------------------------------------------------------
+                        # Extrapolation
+                        #----------------------------------------------------------------------
                         #Interpolate phase and amplitude
                         t = phase[0][:, 0]
                         last_t = phase[radiiUsedForExtrapolation - 1][-1, 0]
