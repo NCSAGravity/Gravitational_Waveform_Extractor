@@ -50,6 +50,8 @@ import sys
 import warnings
 import scipy.optimize
 import scipy.interpolate
+import scipy.integrate
+import matplotlib.pyplot as plt
 
 #-----Function Definitions-----#
 
@@ -283,7 +285,7 @@ def get_energy(sim):
     val = val.astype(np.complex_)
     cur_max_time = python_strain[0][0]
     cur_max_amp = abs(pow(python_strain[0][1], 2))
-    # TODO: rewrite as array operations (use numpy.argmax)
+    # TODO: rewrite as array operations (use np.argmax)
     for i in python_strain[:]:
         cur_time = i[0]
         cur_amp = abs(pow(i[1], 2))
@@ -312,7 +314,7 @@ def get_energy(sim):
         prod = np.multiply(dh, dh_conj)
         local_val = np.zeros(len(t))
         local_val = local_val.astype(np.complex_)
-                # TODO: rewrite as array notation using numpy.cumtrapz
+                # TODO: rewrite as array notation using np.cumtrapz
         for i in range(0, len(t)):
             local_val[i] = np.trapz(prod[:i], x=(t[:i]))
         val += local_val
@@ -331,7 +333,7 @@ def get_angular_momentum(python_strain):
     val = val.astype(np.complex_)
     cur_max_time = python_strain[0][0]
     cur_max_amp = abs(pow(python_strain[0][1], 2))
-    # TODO: rewrite as array operations (use numpy.argmax)
+    # TODO: rewrite as array operations (use np.argmax)
     for i in python_strain[:]:
         cur_time = i[0]
         cur_amp = abs(pow(i[1], 2))
@@ -361,7 +363,7 @@ def get_angular_momentum(python_strain):
         prod = np.multiply(h, dh_conj)
         local_val = np.zeros(len(t))
         local_val = local_val.astype(np.complex_)
-                # TODO: rewrite as array notation using numpy.cumtrapz. Move atoi call out of inner loop.
+                # TODO: rewrite as array notation using np.cumtrapz. Move atoi call out of inner loop.
         for i in range(0, len(t)):
             local_val[i] = np.trapz(prod[:i], x=(t[:i])) * int(((path.split("_")[-1]).split("m")[-1]).split(".")[0])
         val += local_val
@@ -372,6 +374,216 @@ def get_angular_momentum(python_strain):
 #-----Main-----#
 
 if __name__ == "__main__":
+    
+    def eq_16():    
+        #ar = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Extrapolated_Strain\\J0040_N40\\J0040_N40_strain_at_100.0_l2_m2.dat")
+        ar = loadHDF5Series("simulations/J0040_N40/output-????/J0040_N40/mp_psi4.h5", "l2_m2_r100.0")       ####Try this
+        t = ar[:,0]
+        psi = ar[:,1]
+        impsi = ar[:,2]
+        plt.plot(t,psi)
+        plt.plot(t,impsi)
+        plt.show()
+        
+        
+        #%%
+        plt.show()
+        
+        
+        #%%
+        s_in = scipy.integrate.cumtrapz(psi,t)
+        ims_in = scipy.integrate.cumtrapz(impsi,t)
+        s_in = s_in - s_in[-1]
+        ims_in = ims_in - ims_in[-1]
+        plt.plot(t[1:],s_in)
+        plt.plot(t[1:],ims_in)
+        
+        
+        #%%
+        
+        
+        
+        #%%
+        d_in = scipy.integrate.cumtrapz(s_in,t[1:])
+        d_in = d_in - d_in[-1]
+        imd_in = scipy.integrate.cumtrapz(ims_in,t[1:])
+        imd_in = imd_in - imd_in[-1]
+        plt.plot(t[2:],d_in)
+        plt.plot(t[2:],imd_in)
+        
+        
+        #%%
+        A_val = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Gravitational_Waveform_Extractor\\POWER\\simulations\\J0040_N40\\output-0018\\J0040_N40\\quasilocalmeasures-qlm_scalars..asc")
+        r = float(167)
+        l = float(3)
+        m = float(2)
+        M = A_val[:,58][-1]
+        a = (A_val[:,37]/A_val[:,58])[-1]
+        ar_a = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Extrapolated_Strain\\J0040_N40\\J0040_N40_strain_at_167.0_l3_m2.dat")
+        t_a = ar_a[:,0]
+        psi_a = ar_a[:,1]
+        impsi_a = ar_a[:,2]
+        t_b = t_a
+        psi_b = np.zeros(len(psi_a))
+        impsi_b = np.zeros(len(impsi_a))
+        print (a,M)
+        
+        
+        #%%
+        A = 1-(2*M/r)
+        a_1 = r
+        a_2 = ((l-1)*(l+2))/(2*r)
+        a_3 = ((l-1)*(l+2)*(l**2 + l -4))/(8*r*r)
+        B = ((0+a*2j)/((l+1)**2))*((((l+3)*(l-1)*(l+m+1)*(l-m+1))/((2*l+1)*(2*l+3)))**(1/2))
+        b_1 = r
+        b_2 = l*(l+3)
+        C = ((0+a*2j)/((l)**2))*((((l+2)*(l-2)*(l+m)*(l-m))/((2*l-1)*(2*l+1)))**(1/2))
+        c_1 = r
+        c_2 = (l-2)*(l+1)
+        
+        
+        
+        #%%
+        ans = A*(a_1*psi[2:] - a_2*s_in[1:] + a_3*d_in) + B*(b_1*np.gradient(psi_a, t_a)[2:] - b_2*psi_a[2:]) - C*(c_1*np.gradient(psi_b, t_b)[2:] - c_2*psi_b[2:])
+        imans = A*(a_1*impsi[2:] - a_2*ims_in[1:] + a_3*imd_in) + B*(b_1*np.gradient(impsi_a, t_a)[2:] - b_2*impsi_a[2:]) - C*(c_1*np.gradient(impsi_b, t_b)[2:] - c_2*impsi_b[2:])
+        
+        
+        #%%
+        f1 = scipy.integrate.cumtrapz(ans,t[2:])
+        f1 = f1-f1[-1]
+        imf1 = scipy.integrate.cumtrapz(imans,t[2:])
+        imf1 = imf1-imf1[-1]
+        
+        f2 = scipy.integrate.cumtrapz(f1,t[3:])
+        f2 = f2-f2[-1]
+        imf2 = scipy.integrate.cumtrapz(imf1,t[3:])
+        imf2 = imf2-imf2[-1]
+        
+        plt.plot(t[4:],f2)
+        
+        f3_cmp = f2 + imf2*1j
+        imf3 = f3_cmp.imag
+        f3 = f3_cmp.real
+        
+        
+        
+        #%%
+        arr3 = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Extrapolated_Strain\\J0040_N40\\J0040_N40_strain_at_167.0_l2_m2.dat")
+        rans = arr3[:,1]
+        rt = arr3[:,0]
+        rt.shape
+        
+        
+        #%%
+        plt.plot(t[4:],f2)
+        plt.plot(rt,rans)
+        
+        
+        #%%
+        rans_mod = scipy.interpolate.spline(np.copy(rt),np.copy(rans),np.copy(t))
+        
+        
+        #%%
+        plt.plot(t[4:],f2)
+        plt.plot(t,rans_mod)
+        
+        
+        #%%
+        pwr = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Extrapolated_Strain\\J0040_N40\\J0040_N40_strain_at_167.0_l2_m2.dat")
+        tp = pwr[:,0]
+        rep = pwr[:,1]
+        imp = pwr[:,2]
+        plt.plot(tp,rep,label="Re{h(t)}:POWER")
+        plt.plot(t[4:],f2,label="Re{h(t)}:Nakano")
+        plt.legend()
+        plt.xlabel("time [100 solar masses]")
+        plt.ylabel("Re{h(t)} =  strain [dimensionless]")
+        plt.show()
+        tp1 = tp - tp[0]
+        
+        
+        #%%
+        Ap = (rep**2 + imp**2)**(1/2.0)
+        Ae = (f3**2 + imf3**2)**(1/2.0)
+        Ap_m = scipy.interpolate.spline(np.copy(tp1),np.copy(Ap),np.copy(t))
+        Ae_m = scipy.interpolate.spline(np.copy(t[4:]),np.copy(Ae),np.copy(t))
+        plt.plot(t,Ap_m)
+        plt.plot(t,Ae_m)
+        
+        
+        #%%
+        print (f3, imf3)
+        
+        
+        #%%
+        argp = np.arctan2(imp, rep)
+        arge = np.arctan2(imf3, f3)
+        argp_m = scipy.interpolate.spline(np.copy(tp1),np.copy(argp),np.copy(t))
+        arge_m = scipy.interpolate.spline(np.copy(t[4:]),np.copy(arge),np.copy(t))
+        plt.plot(t,argp_m, label="Phase(POWER)")
+        plt.plot(t,arge_m, label="Phase(Nakano)")
+        plt.legend()
+        plt.xlabel("time [100 solar masses]")
+        plt.ylabel("phase [rad]")
+        plt.show()
+    
+    
+        #%%
+        m = max(Ap_m)
+        max_ap = 0.0
+        for i in range(len(t)):
+            if Ap_m[i]==m:
+                max_ap = i
+                break
+        tmax_ap = t[max_ap]
+        
+        m1 = max(Ae_m)
+        max_ae = 0.0
+        for i in range(len(t)):
+            if Ae_m[i]==m1:
+                max_ae = i
+                break
+        tmax_ae = t[max_ae]
+        print (tmax_ap, tmax_ae)
+        
+        
+        #%%
+        tp2 = t-tmax_ap
+        te2 = t-tmax_ae
+        plt.plot(tp2,Ap_m, label="Amplitude(POWER)")
+        plt.plot(te2,Ae_m, label="Amplitude(Nakano)")
+        plt.legend()
+        plt.xlabel("time [100 solar masses]")
+        plt.ylabel("amplitude = strain [dimentionless]")
+        plt.show()
+        
+        
+        #%%
+        phitp = np.unwrap(argp_m)
+        phite = np.unwrap(arge_m)
+        plt.plot(t,phitp)
+        plt.plot(t,phite)
+        
+        
+        #%%
+        phihp = phitp - phitp[max_ap]
+        phihe = phite - phite[max_ae]
+        plt.plot(t,phihp, label="Phase(POWER)")
+        plt.plot(t,phihe, label="Phase(Nakano)")
+        plt.legend()
+        plt.xlabel("time [100 solar masses]")
+        plt.ylabel("phase [rad]")
+        plt.show()
+        
+        
+        #%%
+        diffx = phihp-phihe
+        plt.plot(t,diffx-0.25)
+        plt.ylim(-1.,1.)
+        plt.xlabel("time [100 solar masses]")
+        plt.ylabel("phase [rad]")
+        plt.show()
+    
     #Initialize simulation data
     if(len(sys.argv) < 2):
             print("Pass in the number n of the n innermost detector radii to be used in the extrapolation (optional, default=all) and the simulation folders (e.g., ./power.py 6 ./simulations/J0040_N40 /path/to/my_simulation_folder).")
