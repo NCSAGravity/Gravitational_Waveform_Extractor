@@ -228,6 +228,16 @@ def angular_momentum(x, q, m, chi1, chi2, LInitNR):
         * x**3.))
 	return l - LInitNR
 
+# Convert Cacus truth values to python's
+def to_bool(s):
+        s = tolower(s)
+        if s in ["true", "yes", "1"]:
+            return True
+        elif s in ["false", "no", "0"]:
+            return False
+        else:
+            raise(ValueError("Not a boolean values: %s" % s))
+
 #Get cutoff frequency
 def getCutoffFrequency(sim_name):
 	"""
