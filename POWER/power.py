@@ -248,7 +248,7 @@ def getCutoffFrequency(sim_name):
 	with open(filename) as file:
 		contents = file.readlines()
 		for line in contents:
-			line_elems = line.split(" ")
+			line_elems = re.sub("#.*", "", line).split(" ")
 			if(line_elems[0] == "TwoPunctures::par_b"):
 				par_b = float(line_elems[-1])
 			if(line_elems[0] == "TwoPunctures::center_offset[0]"):
