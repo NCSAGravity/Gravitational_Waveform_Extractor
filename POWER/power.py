@@ -55,154 +55,154 @@ import scipy.interpolate
 
 #Function used in getting psi4 from simulation
 def joinDsets(dsets):
-	"""joints multiple datasets which each have a
-	time like first column, eg iteration number of
-	time. Removes overlapping segments, keeping the
-	last segment.
+        """joints multiple datasets which each have a
+        time like first column, eg iteration number of
+        time. Removes overlapping segments, keeping the
+        last segment.
 
-	dsets = iterable of 2d array like objects with data"""
-	# joins multiple datasets of which the first column is assumed to be "time"
-	if(not dsets):
-		return None
-	length = 0
-	for d in dsets:
-		length += len(d)
-	newshape = list(dsets[0].shape)
-	newshape[0] = length
-	dset = np.empty(shape=newshape, dtype=dsets[0].dtype)
-	usedlength = 0
-	for d in dsets:
-		insertpointidx = np.where(dset[0:usedlength,0] >= d[0,0])
-		if(insertpointidx[0].size):
-			insertpoint = insertpointidx[0][0]
-		else:
-			insertpoint = usedlength
-		newlength = insertpoint+len(d)
-		dset[insertpoint:newlength] = d
-		usedlength = newlength
-	return dset[0:usedlength]
+        dsets = iterable of 2d array like objects with data"""
+        # joins multiple datasets of which the first column is assumed to be "time"
+        if(not dsets):
+                return None
+        length = 0
+        for d in dsets:
+                length += len(d)
+        newshape = list(dsets[0].shape)
+        newshape[0] = length
+        dset = np.empty(shape=newshape, dtype=dsets[0].dtype)
+        usedlength = 0
+        for d in dsets:
+                insertpointidx = np.where(dset[0:usedlength,0] >= d[0,0])
+                if(insertpointidx[0].size):
+                        insertpoint = insertpointidx[0][0]
+                else:
+                        insertpoint = usedlength
+                newlength = insertpoint+len(d)
+                dset[insertpoint:newlength] = d
+                usedlength = newlength
+        return dset[0:usedlength]
 
 #Function used in getting psi4 from simulation
 def loadHDF5Series(nameglob, series):
-	"""load HDF5 timeseries data and concatenate the content of multiple files
+        """load HDF5 timeseries data and concatenate the content of multiple files
 
-	nameglob = a shell glob that matches all files to be loaded,
-	files are sorted alphabetically
-	series = HDF5 dataset name of dataset to load from files"""
-	dsets = list()
-	for fn in sorted(glob.glob(nameglob)):
-		fh = h5py.File(fn, "r")
-		dsets.append(fh[series])
-	return joinDsets(dsets)
+        nameglob = a shell glob that matches all files to be loaded,
+        files are sorted alphabetically
+        series = HDF5 dataset name of dataset to load from files"""
+        dsets = list()
+        for fn in sorted(glob.glob(nameglob)):
+                fh = h5py.File(fn, "r")
+                dsets.append(fh[series])
+        return joinDsets(dsets)
 
 #Convert radial to tortoise coordinates
 def RadialToTortoise(r, M):
-	"""
-	Convert the radial coordinate to the tortoise coordinate
+        """
+        Convert the radial coordinate to the tortoise coordinate
 
-	r = radial coordinate
-	M = ADMMass used to convert coordinate
-	return = tortoise coordinate value
-	"""
-	return r + 2. * M * math.log( r / (2. * M) - 1.)
+        r = radial coordinate
+        M = ADMMass used to convert coordinate
+        return = tortoise coordinate value
+        """
+        return r + 2. * M * math.log( r / (2. * M) - 1.)
 
 #Convert modified psi4 to strain
 def psi4ToStrain(mp_psi4, f0):
-	"""
-	Convert the input mp_psi4 data to the strain of the gravitational wave
-	
-	mp_psi4 = Weyl scalar result from simulation
-	f0 = cutoff frequency
-	return = strain (h) of the gravitational wave
-	"""
-	#TODO: Check for uniform spacing in time
-	t0 = mp_psi4[:, 0]
-	list_len = len(t0)
-	complexPsi = np.zeros(list_len, dtype=np.complex_)
-	complexPsi = mp_psi4[:, 1]+1.j*mp_psi4[:, 2]
+        """
+        Convert the input mp_psi4 data to the strain of the gravitational wave
 
-	freq, psif = myFourierTransform(t0, complexPsi)
-	dhf = ffi(freq, psif, f0)
-	hf = ffi(freq, dhf, f0)
+        mp_psi4 = Weyl scalar result from simulation
+        f0 = cutoff frequency
+        return = strain (h) of the gravitational wave
+        """
+        #TODO: Check for uniform spacing in time
+        t0 = mp_psi4[:, 0]
+        list_len = len(t0)
+        complexPsi = np.zeros(list_len, dtype=np.complex_)
+        complexPsi = mp_psi4[:, 1]+1.j*mp_psi4[:, 2]
 
-	time, h = myFourierTransformInverse(freq, hf, t0[0])
-	hTable = np.column_stack((time, h))
-	return hTable
+        freq, psif = myFourierTransform(t0, complexPsi)
+        dhf = ffi(freq, psif, f0)
+        hf = ffi(freq, dhf, f0)
+
+        time, h = myFourierTransformInverse(freq, hf, t0[0])
+        hTable = np.column_stack((time, h))
+        return hTable
 
 #Fixed frequency integration
 # See https://arxiv.org/abs/1508.07250 for method
 def ffi(freq, data, f0):
-	"""
-	Integrates the data according to the input frequency and cutoff frequency
+        """
+        Integrates the data according to the input frequency and cutoff frequency
 
-	freq = fourier transform frequency
-	data = input on which ffi is performed
-	f0 = cutoff frequency
-	"""
-	f1 = f0/(2*math.pi)
-	fs = freq
-	gs = data
-	mask1 = (np.sign((fs/f1) - 1) + 1)/2.
-	mask2 = (np.sign((-fs/f1) - 1) + 1)/2.
-	mask = 1 - (1 - mask1) * (1 - mask2)
-	fs2 = mask * fs + (1-mask) * f1 * np.sign(fs - np.finfo(float).eps)
-	new_gs = gs/(2*math.pi*1.j*fs2)
-	return new_gs
+        freq = fourier transform frequency
+        data = input on which ffi is performed
+        f0 = cutoff frequency
+        """
+        f1 = f0/(2*math.pi)
+        fs = freq
+        gs = data
+        mask1 = (np.sign((fs/f1) - 1) + 1)/2.
+        mask2 = (np.sign((-fs/f1) - 1) + 1)/2.
+        mask = 1 - (1 - mask1) * (1 - mask2)
+        fs2 = mask * fs + (1-mask) * f1 * np.sign(fs - np.finfo(float).eps)
+        new_gs = gs/(2*math.pi*1.j*fs2)
+        return new_gs
 
 #Fourier Transform
 def myFourierTransform(t0, complexPsi):
-	"""
-	Transforms the complexPsi data to frequency space
+        """
+        Transforms the complexPsi data to frequency space
 
-	t0 = time data points
-	complexPsi = data points of Psi to be transformed
-	"""
-	psif = np.fft.fft(complexPsi, norm="ortho")
-	l = len(complexPsi)
-	n = int(math.floor(l/2.))
-	newpsif = psif[l-n:]
-	newpsif = np.append(newpsif, psif[:l-n])
-	T = np.amin(np.diff(t0))*l
-	freq = range(-n, l-n)/T
-	return freq, newpsif
+        t0 = time data points
+        complexPsi = data points of Psi to be transformed
+        """
+        psif = np.fft.fft(complexPsi, norm="ortho")
+        l = len(complexPsi)
+        n = int(math.floor(l/2.))
+        newpsif = psif[l-n:]
+        newpsif = np.append(newpsif, psif[:l-n])
+        T = np.amin(np.diff(t0))*l
+        freq = range(-n, l-n)/T
+        return freq, newpsif
 
 #Inverse Fourier Transform
 def myFourierTransformInverse(freq, hf, t0):
-	l = len(hf)
-	n = int(math.floor(l/2.))
-	newhf = hf[n:]
-	newhf = np.append(newhf, hf[:n])
-	amp = np.fft.ifft(newhf, norm="ortho")
-	df = np.amin(np.diff(freq))
-	time = t0 + range(0, l)/(df*l)
-	return time, amp
+        l = len(hf)
+        n = int(math.floor(l/2.))
+        newhf = hf[n:]
+        newhf = np.append(newhf, hf[:n])
+        amp = np.fft.ifft(newhf, norm="ortho")
+        df = np.amin(np.diff(freq))
+        time = t0 + range(0, l)/(df*l)
+        return time, amp
 
 def angular_momentum(x, q, m, chi1, chi2, LInitNR):
-	eta = q/(1.+q)**2
-	m1 = (1.+math.sqrt(1.-4.*eta))/2.
-	m2 = m - m1
-	S1 = m1**2. * chi1
-	S2 = m2**2. * chi2
-	Sl = S1+S2
-	Sigmal = S2/m2 - S1/m1
-	DeltaM = m1 - m2
-	mu = eta
-	nu = eta
-	GammaE = 0.5772156649;
-	e4 = -(123671./5760.)+(9037.* math.pi**2.)/1536.+(896.*GammaE)/15.+(-(498449./3456.)+(3157.*math.pi**2.)/576.)*nu+(301. * nu**2.)/1728.+(77.*nu**3.)/31104.+(1792. *math.log(2.))/15.
-	e5 = -55.13
-	j4 = -(5./7.)*e4+64./35.
-	j5 = -(2./3.)*e5-4988./945.-656./135. * eta;
-	a1 = -2.18522;
-	a2 = 1.05185;
-	a3 = -2.43395;
-	a4 = 0.400665;
-	a5 = -5.9991;
-	CapitalDelta = (1.-4.*eta)**0.5
+        eta = q/(1.+q)**2
+        m1 = (1.+math.sqrt(1.-4.*eta))/2.
+        m2 = m - m1
+        S1 = m1**2. * chi1
+        S2 = m2**2. * chi2
+        Sl = S1+S2
+        Sigmal = S2/m2 - S1/m1
+        DeltaM = m1 - m2
+        mu = eta
+        nu = eta
+        GammaE = 0.5772156649;
+        e4 = -(123671./5760.)+(9037.* math.pi**2.)/1536.+(896.*GammaE)/15.+(-(498449./3456.)+(3157.*math.pi**2.)/576.)*nu+(301. * nu**2.)/1728.+(77.*nu**3.)/31104.+(1792. *math.log(2.))/15.
+        e5 = -55.13
+        j4 = -(5./7.)*e4+64./35.
+        j5 = -(2./3.)*e5-4988./945.-656./135. * eta;
+        a1 = -2.18522;
+        a2 = 1.05185;
+        a3 = -2.43395;
+        a4 = 0.400665;
+        a5 = -5.9991;
+        CapitalDelta = (1.-4.*eta)**0.5
 
-	l = (eta/x**(1./2.)*(
-		1. +
-		x*(3./2. + 1./6.*eta) + 
+        l = (eta/x**(1./2.)*(
+                1. +
+                x*(3./2. + 1./6.*eta) +
         x**2. *(27./8. - 19./8.*eta + 1./24.*eta**2.) + 
         x**3. *(135./16. + (-6889./144. + 41./24. * math.pi**2.)*eta + 31./24.*eta**2. + 7./1296.*eta**3.) + 
         x**4. *((2835./128.) + eta*j4 - (64.*eta*math.log(x)/3.))+ 
@@ -226,7 +226,7 @@ def angular_momentum(x, q, m, chi1, chi2, LInitNR):
         29./9.*CapitalDelta*nu*chi2**2. +
         (14.*nu**2. * chi2**2.)/9.)
         * x**3.))
-	return l - LInitNR
+        return l - LInitNR
 
 # Convert Cacus truth values to python's
 def to_bool(s):
@@ -240,12 +240,12 @@ def to_bool(s):
 
 #Get cutoff frequency
 def getCutoffFrequency(sim_name):
-	"""
-	Determine cutoff frequency of simulation
+        """
+        Determine cutoff frequency of simulation
 
-	sim_name = string of simulation
-	return = cutoff frequency
-	"""
+        sim_name = string of simulation
+        return = cutoff frequency
+        """
         center_offset = 0.
         par_b = 1.0
         pyp = 0.
@@ -255,27 +255,27 @@ def getCutoffFrequency(sim_name):
         give_bare_mass = True
         S1 = 0.
         S2 = 0.
-	filename = main_dir+"/output-0000/%s.par" % (sim_name)
-	with open(filename) as file:
-		contents = file.readlines()
-		for line in contents:
-			line_elems = re.sub("#.*", "", line).split(" ")
-			if(line_elems[0] == "TwoPunctures::par_b"):
-				par_b = float(line_elems[-1])
-			if(line_elems[0] == "TwoPunctures::center_offset[0]"):
-				center_offset = float(line_elems[-1])
-			if(line_elems[0] == "TwoPunctures::par_P_plus[1]"):
-				pyp = float(line_elems[-1])
-			if(line_elems[0] == "TwoPunctures::par_P_minus[1]"):
-				pym = float(line_elems[-1])
-			if(line_elems[0] == "TwoPunctures::target_M_plus"):
-				target_m1 = float(line_elems[-1])
-			if(line_elems[0] == "TwoPunctures::target_M_minus"):
-				target_m2 = float(line_elems[-1])
-			if(line_elems[0] == "TwoPunctures::par_S_plus[2]"):
-				S1 = float(line_elems[-1])
-			if(line_elems[0] == "TwoPunctures::par_S_minus[2]"):
-				S2 = float(line_elems[-1])
+        filename = main_dir+"/output-0000/%s.par" % (sim_name)
+        with open(filename) as file:
+                contents = file.readlines()
+                for line in contents:
+                        line_elems = re.sub("#.*", "", line).split(" ")
+                        if(line_elems[0] == "TwoPunctures::par_b"):
+                                par_b = float(line_elems[-1])
+                        if(line_elems[0] == "TwoPunctures::center_offset[0]"):
+                                center_offset = float(line_elems[-1])
+                        if(line_elems[0] == "TwoPunctures::par_P_plus[1]"):
+                                pyp = float(line_elems[-1])
+                        if(line_elems[0] == "TwoPunctures::par_P_minus[1]"):
+                                pym = float(line_elems[-1])
+                        if(line_elems[0] == "TwoPunctures::target_M_plus"):
+                                target_m1 = float(line_elems[-1])
+                        if(line_elems[0] == "TwoPunctures::target_M_minus"):
+                                target_m2 = float(line_elems[-1])
+                        if(line_elems[0] == "TwoPunctures::par_S_plus[2]"):
+                                S1 = float(line_elems[-1])
+                        if(line_elems[0] == "TwoPunctures::par_S_minus[2]"):
+                                S2 = float(line_elems[-1])
                         if(line_elems[0] == "TwoPunctures::give_bare_mass"):
                                 give_bare_mass = to_bool(line_elems[-1])
         adm_m1 = None
@@ -311,116 +311,116 @@ def getCutoffFrequency(sim_name):
             print("Cannot determine ADM masses of punctures")
             raise ValueError
 
-	xp = par_b + center_offset
-	xm = -1*par_b + center_offset
-	LInitNR = xp*pyp + xm*pym
-	M = adm_m1+adm_m2
-	q = adm_m1/adm_m2
-	chi1 = S1/adm_m1**2
-	chi2 = S2/adm_m2**2
-	# .014 is the initial guess for cutoff frequency
-	omOrbPN = scipy.optimize.fsolve(angular_momentum, .014, (q, M, chi1, chi2, LInitNR))[0]
-	omOrbPN = omOrbPN**(3./2.)
-	omGWPN = 2. * omOrbPN
-	omCutoff = 0.75 * omGWPN
-	return omCutoff
+        xp = par_b + center_offset
+        xm = -1*par_b + center_offset
+        LInitNR = xp*pyp + xm*pym
+        M = adm_m1+adm_m2
+        q = adm_m1/adm_m2
+        chi1 = S1/adm_m1**2
+        chi2 = S2/adm_m2**2
+        # .014 is the initial guess for cutoff frequency
+        omOrbPN = scipy.optimize.fsolve(angular_momentum, .014, (q, M, chi1, chi2, LInitNR))[0]
+        omOrbPN = omOrbPN**(3./2.)
+        omGWPN = 2. * omOrbPN
+        omCutoff = 0.75 * omGWPN
+        return omCutoff
 
 #Get Energy
 def get_energy(sim):
-	"""
-	Save the energy radiated energy
-	sim = string of simulation
-	"""
-	python_strain = np.loadtxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l2_m2.dat")
-	val = np.zeros(len(python_strain))
-	val = val.astype(np.complex_)
-	cur_max_time = python_strain[0][0]
-	cur_max_amp = abs(pow(python_strain[0][1], 2))
-	# TODO: rewrite as array operations (use numpy.argmax)
-	for i in python_strain[:]:
-		cur_time = i[0]
-		cur_amp = abs(pow(i[1], 2))
-		if(cur_amp>cur_max_amp):
-			cur_max_amp = cur_amp
-			cur_max_time = cur_time
+        """
+        Save the energy radiated energy
+        sim = string of simulation
+        """
+        python_strain = np.loadtxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l2_m2.dat")
+        val = np.zeros(len(python_strain))
+        val = val.astype(np.complex_)
+        cur_max_time = python_strain[0][0]
+        cur_max_amp = abs(pow(python_strain[0][1], 2))
+        # TODO: rewrite as array operations (use numpy.argmax)
+        for i in python_strain[:]:
+                cur_time = i[0]
+                cur_amp = abs(pow(i[1], 2))
+                if(cur_amp>cur_max_amp):
+                        cur_max_amp = cur_amp
+                        cur_max_time = cur_time
 
-	max_idx = 0
-	for i in range(0, len(python_strain[:])):
-		if(python_strain[i][1] > python_strain[max_idx][1]):
-			max_idx = i
+        max_idx = 0
+        for i in range(0, len(python_strain[:])):
+                if(python_strain[i][1] > python_strain[max_idx][1]):
+                        max_idx = i
 
-	paths = glob.glob("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l[2-4]_m*.dat")
-	for path in paths:
-		python_strain = np.loadtxt(path)
+        paths = glob.glob("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l[2-4]_m*.dat")
+        for path in paths:
+                python_strain = np.loadtxt(path)
 
-		t = python_strain[:, 0]
-		t = t.astype(np.complex_)
-		h = python_strain[:, 1] + 1j * python_strain[:, 2]
-		dh = np.zeros(len(t), dtype=np.complex_) 
-		for i in range(0, len(t)-1):
-			dh[i] = ((h[i+1] - h[i])/(t[i+1] - t[i]))
-		dh[len(t)-1] = dh[len(t)-2]
+                t = python_strain[:, 0]
+                t = t.astype(np.complex_)
+                h = python_strain[:, 1] + 1j * python_strain[:, 2]
+                dh = np.zeros(len(t), dtype=np.complex_)
+                for i in range(0, len(t)-1):
+                        dh[i] = ((h[i+1] - h[i])/(t[i+1] - t[i]))
+                dh[len(t)-1] = dh[len(t)-2]
 
-		dh_conj = np.conj(dh)
-		prod = np.multiply(dh, dh_conj)
-		local_val = np.zeros(len(t))
-		local_val = local_val.astype(np.complex_)
+                dh_conj = np.conj(dh)
+                prod = np.multiply(dh, dh_conj)
+                local_val = np.zeros(len(t))
+                local_val = local_val.astype(np.complex_)
                 # TODO: rewrite as array notation using numpy.cumtrapz
-		for i in range(0, len(t)):
-			local_val[i] = np.trapz(prod[:i], x=(t[:i]))
-		val += local_val
-		
-	val *= 1/(16 * math.pi)
-	np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_energy.dat", val)
+                for i in range(0, len(t)):
+                        local_val[i] = np.trapz(prod[:i], x=(t[:i]))
+                val += local_val
+
+        val *= 1/(16 * math.pi)
+        np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_energy.dat", val)
 
 #Get angular momentum
 def get_angular_momentum(python_strain):
-	"""
-	Save the energy radiated angular momentum
-	sim = string of simulation
-	"""
-	python_strain = np.loadtxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l2_m2.dat")
-	val = np.zeros(len(python_strain))
-	val = val.astype(np.complex_)
-	cur_max_time = python_strain[0][0]
-	cur_max_amp = abs(pow(python_strain[0][1], 2))
-	# TODO: rewrite as array operations (use numpy.argmax)
-	for i in python_strain[:]:
-		cur_time = i[0]
-		cur_amp = abs(pow(i[1], 2))
-		if(cur_amp>cur_max_amp):
-			cur_max_amp = cur_amp
-			cur_max_time = cur_time
+        """
+        Save the energy radiated angular momentum
+        sim = string of simulation
+        """
+        python_strain = np.loadtxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l2_m2.dat")
+        val = np.zeros(len(python_strain))
+        val = val.astype(np.complex_)
+        cur_max_time = python_strain[0][0]
+        cur_max_amp = abs(pow(python_strain[0][1], 2))
+        # TODO: rewrite as array operations (use numpy.argmax)
+        for i in python_strain[:]:
+                cur_time = i[0]
+                cur_amp = abs(pow(i[1], 2))
+                if(cur_amp>cur_max_amp):
+                        cur_max_amp = cur_amp
+                        cur_max_time = cur_time
 
-	max_idx = 0
-	for i in range(0, len(python_strain[:])):
-		if(python_strain[i][1] > python_strain[max_idx][1]):
-			max_idx = i
+        max_idx = 0
+        for i in range(0, len(python_strain[:])):
+                if(python_strain[i][1] > python_strain[max_idx][1]):
+                        max_idx = i
 
-	paths = glob.glob("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l[2-4]_m*.dat")
-	for path in paths:
-		python_strain = np.loadtxt(path)
+        paths = glob.glob("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l[2-4]_m*.dat")
+        for path in paths:
+                python_strain = np.loadtxt(path)
 
-		t = python_strain[:, 0]
-		t = t.astype(np.complex_)
-		h = python_strain[:, 1] + 1j * python_strain[:, 2]
-		dh = np.zeros(len(t), dtype=np.complex_) 
+                t = python_strain[:, 0]
+                t = t.astype(np.complex_)
+                h = python_strain[:, 1] + 1j * python_strain[:, 2]
+                dh = np.zeros(len(t), dtype=np.complex_)
                 # TODO: rewrite using array notation
-		for i in range(0, len(t)-1):
-			dh[i] = ((h[i+1] - h[i])/(t[i+1] - t[i]))
-		dh[len(t)-1] = dh[len(t)-2]
+                for i in range(0, len(t)-1):
+                        dh[i] = ((h[i+1] - h[i])/(t[i+1] - t[i]))
+                dh[len(t)-1] = dh[len(t)-2]
 
-		dh_conj = np.conj(dh)
-		prod = np.multiply(h, dh_conj)
-		local_val = np.zeros(len(t))
-		local_val = local_val.astype(np.complex_)
+                dh_conj = np.conj(dh)
+                prod = np.multiply(h, dh_conj)
+                local_val = np.zeros(len(t))
+                local_val = local_val.astype(np.complex_)
                 # TODO: rewrite as array notation using numpy.cumtrapz. Move atoi call out of inner loop.
-		for i in range(0, len(t)):
-			local_val[i] = np.trapz(prod[:i], x=(t[:i])) * int(((path.split("_")[-1]).split("m")[-1]).split(".")[0])
-		val += local_val
-		
-	val *= 1/(16 * math.pi)
-	np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_angular_momentum.dat", val)
+                for i in range(0, len(t)):
+                        local_val[i] = np.trapz(prod[:i], x=(t[:i])) * int(((path.split("_")[-1]).split("m")[-1]).split(".")[0])
+                val += local_val
+
+        val *= 1/(16 * math.pi)
+        np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_angular_momentum.dat", val)
 
 #-----Main-----#
 
@@ -444,7 +444,7 @@ if __name__ == "__main__":
             firstRadiusUsedForExtrapolation = 0
     else:
         non_dirs = 0
-        radiiUsedForExtrapolation = 7	#use the first n radii available
+        radiiUsedForExtrapolation = 7   #use the first n radii available
         firstRadiusUsedForExtrapolation = 0
 
     paths = sys.argv[1+non_dirs:]
@@ -461,29 +461,29 @@ if __name__ == "__main__":
             two_punctures_files = sorted(glob.glob(main_dir+"/output-????/%s/TwoPunctures.bbh" % (sim)))
             out_files = sorted(glob.glob(main_dir+"/output-????/%s.out" % (sim)))
             par_files = sorted(glob.glob(main_dir+"/output-????/%s.par" % (sim)))
-	    if(two_punctures_files):
-  	      two_punctures_file = two_punctures_files[0]
+            if(two_punctures_files):
+              two_punctures_file = two_punctures_files[0]
               with open(two_punctures_file) as file:
                     contents = file.readlines()
                     for line in contents:
                             line_elems = line.split(" ")
                             if(line_elems[0] == "initial-ADM-energy"):
                                     ADMMass = float(line_elems[-1])
-	    elif(out_files):
+            elif(out_files):
               out_file = out_files[0]
               with open(out_file) as file:
                     contents = file.readlines()
                     for line in contents:
-			     m = re.match("INFO \(TwoPunctures\): The total ADM mass is (.*)", line)
-			     if(m):
-				ADMMass = float(m.group(1))
+                             m = re.match("INFO \(TwoPunctures\): The total ADM mass is (.*)", line)
+                             if(m):
+                                ADMMass = float(m.group(1))
             elif(par_files):
-  	        par_file = par_files[0]
-		print("Not yet implemented")
-		raise ValueError
-	    else:
-		print("Cannot determine ADM mass")
-		raise ValueError
+                par_file = par_files[0]
+                print("Not yet implemented")
+                raise ValueError
+            else:
+                print("Cannot determine ADM mass")
+                raise ValueError
 
             #Create data directories
             main_directory = "Extrapolated_Strain"
