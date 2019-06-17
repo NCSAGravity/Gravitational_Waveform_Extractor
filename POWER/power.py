@@ -236,6 +236,14 @@ def getCutoffFrequency(sim_name):
 	sim_name = string of simulation
 	return = cutoff frequency
 	"""
+        center_offset = 0.
+        par_b = 1.0
+        pyp = 0.
+        pym = 0.
+        m1 = 1.0
+        m2 = 1.0
+        S1 = 0.
+        S2 = 0.
 	filename = main_dir+"/output-0000/%s.par" % (sim_name)
 	with open(filename) as file:
 		contents = file.readlines()
