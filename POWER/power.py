@@ -485,7 +485,7 @@ if __name__ == "__main__":
 
             # TODO: fix this. It will fail if output-0000 does not contain any mp
             # output and also will open the output files multiple times
-            fn = sorted(glob.glob(simdirs+"mp_psi4.h5"))[0]
+            fn = sorted(glob.glob(simdirs+"mp_[Pp]si4.h5"))[0]
             with h5py.File(fn, "r") as fh:
                     # get all radii
                     radii = set()
@@ -509,7 +509,7 @@ if __name__ == "__main__":
                     mp_psi4_vars = []
                     for radius in radii:
                             psi4dsetname = dsets[(radius, (l,m))]
-                            mp_psi4 = loadHDF5Series(simdirs+"mp_psi4.h5", psi4dsetname)
+                            mp_psi4 = loadHDF5Series(simdirs+"mp_[Pp]si4.h5", psi4dsetname)
                             mp_psi4_vars.append(mp_psi4)
 
                     #Get Tortoise Coordinate
