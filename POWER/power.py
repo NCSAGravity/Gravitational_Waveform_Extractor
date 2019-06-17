@@ -427,17 +427,27 @@ def get_angular_momentum(python_strain):
 if __name__ == "__main__":
     #Initialize simulation data
     if(len(sys.argv) < 2):
-            print("Pass in the number n of the n innermost detector radii to be used in the extrapolation (optional, default=all) and the simulation folders (e.g., ./power.py 6 ./simulations/J0040_N40 /path/to/my_simulation_folder).")
-            sys.exit()
-    elif(os.path.isdir(sys.argv[1])):
-            radiiUsedForExtrapolation = 7	#use the first n radii available
-            paths = sys.argv[1:]
-    elif(not os.path.isdir(sys.argv[1])):
-            radiiUsedForExtrapolation = int(sys.argv[1])	#use the first n radii available
-            if(radiiUsedForExtrapolation < 1 or radiiUsedForExtrapolation > 7):
-                    print("Invalid specified radii number")
-                    sys.exit()
-            paths = sys.argv[2:]
+            print("You need to pass at least one simulation path")
+            sys.exit(1)
+
+    # let user specify which radii to use.
+    # either the n innermost one or the n immermost ones starting from the ith:
+    # "n" or "i n"
+    if(not os.path.isdir(sys.argv[1])):
+        if(not os.path.isdir(sys.argv[2])):
+            non_dirs = 2
+            radiiUsedForExtrapolation = int(sys.argv[2])
+            firstRadiusUsedForExtrapolation = int(sys.argv[1])-1
+        else:
+            non_dirs = 1
+            radiiUsedForExtrapolation = int(sys.argv[1])
+            firstRadiusUsedForExtrapolation = 0
+    else:
+        non_dirs = 0
+        radiiUsedForExtrapolation = 7	#use the first n radii available
+        firstRadiusUsedForExtrapolation = 0
+
+    paths = sys.argv[1+non_dirs:]
 
     for sim_path in paths:
             main_dir = sim_path
@@ -560,27 +570,27 @@ if __name__ == "__main__":
                             amp.append(ampTable)
 
                     #Interpolate phase and amplitude
-                    t = phase[0][:, 0]
-                    last_t = phase[radiiUsedForExtrapolation - 1][-1, 0]
+                    t = phase[firstRadiusUsedForExtrapolation][:, 0]
+                    last_t = phase[firstRadiusUsedForExtrapolation+radiiUsedForExtrapolation - 1][-1, 0]
                     last_index = 0;
                     # TODO: use array notation for this (this is a boolean
                     # plus a first_of or so)
-                    for i in range(0, len(phase[0][:, 0])):
+                    for i in range(0, len(phase[firstRadiusUsedForExtrapolation][:, 0])):
                             if(t[i] > last_t):
                                     last_index = i
                                     break
                     last_index = last_index-1
-                    t = phase[0][0:last_index, 0]
+                    t = phase[firstRadiusUsedForExtrapolation][0:last_index, 0]
                     dts = t[1:] - t[:-1]
                     dt = float(np.amin(dts))
-                    t = np.arange(phase[0][0, 0], phase[0][last_index, 0], dt)
+                    t = np.arange(phase[firstRadiusUsedForExtrapolation][0, 0], phase[firstRadiusUsedForExtrapolation][last_index, 0], dt)
                     interpolation_order = 9
-                    for i in range(0, radiiUsedForExtrapolation):
+                    for i in range(firstRadiusUsedForExtrapolation, firstRadiusUsedForExtrapolation+radiiUsedForExtrapolation):
                             interp_function = scipy.interpolate.interp1d(phase[i][:, 0], phase[i][:, 1], kind=interpolation_order)
                             resampled_phase_vals = interp_function(t)
                             # try and keep all initial phases within 2pi of each other
                             if(i > 0):
-                                phase_shift = round((resampled_phase_vals[0] - phase[0][0,1])/(2.*math.pi))*2.*math.pi
+                                phase_shift = round((resampled_phase_vals[0] - phase[firstRadiusUsedForExtrapolation][0,1])/(2.*math.pi))*2.*math.pi
                                 resampled_phase_vals -= phase_shift
                             phase[i] = np.column_stack((t, resampled_phase_vals))
                             interp_function = scipy.interpolate.interp1d(amp[i][:, 0], amp[i][:, 1], kind=interpolation_order)
@@ -591,27 +601,27 @@ if __name__ == "__main__":
                     phase_extrapolation_order = 1
                     amp_extrapolation_order = 2
                     radii = np.asarray(radii, dtype=float)
-                    radii = radii[0:radiiUsedForExtrapolation]
+                    used_radii = radii[firstRadiusUsedForExtrapolation:firstRadiusUsedForExtrapolation+radiiUsedForExtrapolation]
                     # TODO: replace by np.ones (which is all it does anyway)
-                    A_phase = np.power(radii, 0)
-                    A_amp = np.power(radii, 0)
+                    A_phase = np.power(used_radii, 0)
+                    A_amp = np.power(used_radii, 0)
                     for i in range(1, phase_extrapolation_order+1):
-                            A_phase = np.column_stack((A_phase, np.power(radii, -1*i)))
+                            A_phase = np.column_stack((A_phase, np.power(used_radii, -1*i)))
 
                     for i in range(1, amp_extrapolation_order+1):
-                            A_amp = np.column_stack((A_amp, np.power(radii, -1*i)))
+                            A_amp = np.column_stack((A_amp, np.power(used_radii, -1*i)))
 
                     radially_extrapolated_phase = np.empty(0)
                     radially_extrapolated_amp = np.empty(0)
                     for i in range(0, len(t)):
                             b_phase = np.empty(0)
-                            for j in range(0, radiiUsedForExtrapolation):
+                            for j in range(firstRadiusUsedForExtrapolation, firstRadiusUsedForExtrapolation+radiiUsedForExtrapolation):
                                     b_phase = np.append(b_phase, phase[j][i, 1])
                             x_phase = np.linalg.lstsq(A_phase, b_phase)[0]
                             radially_extrapolated_phase = np.append(radially_extrapolated_phase, x_phase[0])
 
                             b_amp = np.empty(0)
-                            for j in range(0, radiiUsedForExtrapolation):
+                            for j in range(firstRadiusUsedForExtrapolation, firstRadiusUsedForExtrapolation+radiiUsedForExtrapolation):
                                     b_amp = np.append(b_amp, amp[j][i, 1])
                             x_amp = np.linalg.lstsq(A_amp, b_amp)[0]
                             radially_extrapolated_amp = np.append(radially_extrapolated_amp, x_amp[0])
