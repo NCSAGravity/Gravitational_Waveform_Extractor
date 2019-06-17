@@ -250,8 +250,9 @@ def getCutoffFrequency(sim_name):
         par_b = 1.0
         pyp = 0.
         pym = 0.
-        m1 = 1.0
-        m2 = 1.0
+        target_m1 = 1.0
+        target_m2 = 1.0
+        give_bare_mass = True
         S1 = 0.
         S2 = 0.
 	filename = main_dir+"/output-0000/%s.par" % (sim_name)
@@ -268,21 +269,55 @@ def getCutoffFrequency(sim_name):
 			if(line_elems[0] == "TwoPunctures::par_P_minus[1]"):
 				pym = float(line_elems[-1])
 			if(line_elems[0] == "TwoPunctures::target_M_plus"):
-				m1 = float(line_elems[-1])
+				target_m1 = float(line_elems[-1])
 			if(line_elems[0] == "TwoPunctures::target_M_minus"):
-				m2 = float(line_elems[-1])
+				target_m2 = float(line_elems[-1])
 			if(line_elems[0] == "TwoPunctures::par_S_plus[2]"):
 				S1 = float(line_elems[-1])
 			if(line_elems[0] == "TwoPunctures::par_S_minus[2]"):
 				S2 = float(line_elems[-1])
+                        if(line_elems[0] == "TwoPunctures::give_bare_mass"):
+                                give_bare_mass = to_bool(line_elems[-1])
+        adm_m1 = None
+        adm_m2 = None
+        two_punctures_files = sorted(glob.glob(main_dir+"/output-????/%s/TwoPunctures.bbh" % (sim)))
+        out_files = sorted(glob.glob(main_dir+"/output-????/%s.out" % (sim)))
+        par_files = sorted(glob.glob(main_dir+"/output-????/%s.par" % (sim)))
+        if(two_punctures_files):
+          two_punctures_file = two_punctures_files[0]
+          with open(two_punctures_file) as file:
+                contents = file.readlines()
+                for line in contents:
+                        line_elems = re.sub("#.*", "", line).split(" ")
+                        if(line_elems[0] == "initial-bh-puncture-adm-mass1"):
+                                adm_m1 = float(line_elems[-1])
+                        if(line_elems[0] == "initial-bh-puncture-adm-mass2"):
+                                adm_m1 = float(line_elems[-1])
+        elif(out_files):
+          out_file = out_files[0]
+          with open(out_file) as file:
+                contents = file.readlines()
+                for line in contents:
+                         m = re.match("INFO \(TwoPunctures\): Puncture 1 ADM mass is (.*)", line)
+                         if(m):
+                            adm_m1 = float(m.group(1))
+                         m = re.match("INFO \(TwoPunctures\): Puncture 2 ADM mass is (.*)", line)
+                         if(m):
+                            adm_m2 = float(m.group(1))
+        elif(not give_bare_mass):
+                adm_m1 = target_m1
+                adm_m2 = target_m2
+        else:
+            print("Cannot determine ADM masses of punctures")
+            raise ValueError
 
 	xp = par_b + center_offset
 	xm = -1*par_b + center_offset
 	LInitNR = xp*pyp + xm*pym
-	M = m1+m2
-	q = m1/m2
-	chi1 = S1/m1**2
-	chi2 = S2/m2**2
+	M = adm_m1+adm_m2
+	q = adm_m1/adm_m2
+	chi1 = S1/adm_m1**2
+	chi2 = S2/adm_m2**2
 	# .014 is the initial guess for cutoff frequency
 	omOrbPN = scipy.optimize.fsolve(angular_momentum, .014, (q, M, chi1, chi2, LInitNR))[0]
 	omOrbPN = omOrbPN**(3./2.)
