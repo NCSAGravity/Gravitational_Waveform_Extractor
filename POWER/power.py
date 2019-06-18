@@ -292,7 +292,7 @@ def getCutoffFrequency(sim_name):
                         if(line_elems[0] == "initial-bh-puncture-adm-mass1"):
                                 adm_m1 = float(line_elems[-1])
                         if(line_elems[0] == "initial-bh-puncture-adm-mass2"):
-                                adm_m1 = float(line_elems[-1])
+                                adm_m2 = float(line_elems[-1])
         elif(out_files):
           out_file = out_files[0]
           with open(out_file) as file:
