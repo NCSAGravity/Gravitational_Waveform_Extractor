@@ -230,7 +230,7 @@ def angular_momentum(x, q, m, chi1, chi2, LInitNR):
 
 # Convert Cacus truth values to python's
 def to_bool(s):
-        s = tolower(s)
+        s = s.lower()
         if s in ["true", "yes", "1"]:
             return True
         elif s in ["false", "no", "0"]:
