@@ -285,7 +285,7 @@ def get_energy(sim):
     val = val.astype(np.complex_)
     cur_max_time = python_strain[0][0]
     cur_max_amp = abs(pow(python_strain[0][1], 2))
-    # TODO: rewrite as array operations (use np.argmax)
+    # TODO: rewrite as array operations (use numpy.argmax)
     for i in python_strain[:]:
         cur_time = i[0]
         cur_amp = abs(pow(i[1], 2))
@@ -314,7 +314,7 @@ def get_energy(sim):
         prod = np.multiply(dh, dh_conj)
         local_val = np.zeros(len(t))
         local_val = local_val.astype(np.complex_)
-                # TODO: rewrite as array notation using np.cumtrapz
+                # TODO: rewrite as array notation using numpy.cumtrapz
         for i in range(0, len(t)):
             local_val[i] = np.trapz(prod[:i], x=(t[:i]))
         val += local_val
@@ -333,7 +333,7 @@ def get_angular_momentum(python_strain):
     val = val.astype(np.complex_)
     cur_max_time = python_strain[0][0]
     cur_max_amp = abs(pow(python_strain[0][1], 2))
-    # TODO: rewrite as array operations (use np.argmax)
+    # TODO: rewrite as array operations (use numpy.argmax)
     for i in python_strain[:]:
         cur_time = i[0]
         cur_amp = abs(pow(i[1], 2))
@@ -363,7 +363,7 @@ def get_angular_momentum(python_strain):
         prod = np.multiply(h, dh_conj)
         local_val = np.zeros(len(t))
         local_val = local_val.astype(np.complex_)
-                # TODO: rewrite as array notation using np.cumtrapz. Move atoi call out of inner loop.
+                # TODO: rewrite as array notation using numpy.cumtrapz. Move atoi call out of inner loop.
         for i in range(0, len(t)):
             local_val[i] = np.trapz(prod[:i], x=(t[:i])) * int(((path.split("_")[-1]).split("m")[-1]).split(".")[0])
         val += local_val
@@ -375,9 +375,15 @@ def get_angular_momentum(python_strain):
 
 if __name__ == "__main__":
     
-    def eq_16():    
+    
+    #--------------------------------------------------------------------------
+    #Inserted equation 16 here
+    #--------------------------------------------------------------------------
+    
+    def eq_16(psi4_path, modes_and_radius, path_for_strain, quasilocalmeasures_path):    
         #ar = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Extrapolated_Strain\\J0040_N40\\J0040_N40_strain_at_100.0_l2_m2.dat")
-        ar = loadHDF5Series("simulations/J0040_N40/output-????/J0040_N40/mp_psi4.h5", "l2_m2_r100.0")       ####Try this
+        #ar = loadHDF5Series("simulations/J0040_N40/output-????/J0040_N40/mp_psi4.h5", "l2_m2_r100.0")       ####Try this
+        ar = loadHDF5Series(psi4_path, modes_and_radius)
         t = ar[:,0]
         psi = ar[:,1]
         impsi = ar[:,2]
@@ -413,13 +419,15 @@ if __name__ == "__main__":
         
         
         #%%
-        A_val = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Gravitational_Waveform_Extractor\\POWER\\simulations\\J0040_N40\\output-0018\\J0040_N40\\quasilocalmeasures-qlm_scalars..asc")
+        #A_val = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Gravitational_Waveform_Extractor\\POWER\\simulations\\J0040_N40\\output-0018\\J0040_N40\\quasilocalmeasures-qlm_scalars..asc")
+        A_val = loadHDF5Series(quasilocalmeasures_path)
         r = float(167)
         l = float(3)
         m = float(2)
         M = A_val[:,58][-1]
         a = (A_val[:,37]/A_val[:,58])[-1]
-        ar_a = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Extrapolated_Strain\\J0040_N40\\J0040_N40_strain_at_167.0_l3_m2.dat")
+        #ORIGINAL: ar_a = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Extrapolated_Strain\\J0040_N40\\J0040_N40_strain_at_167.0_l3_m2.dat")
+        ar_a = np.loadtxt(path_for_strain)
         t_a = ar_a[:,0]
         psi_a = ar_a[:,1]
         impsi_a = ar_a[:,2]
@@ -468,7 +476,8 @@ if __name__ == "__main__":
         
         
         #%%
-        arr3 = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Extrapolated_Strain\\J0040_N40\\J0040_N40_strain_at_167.0_l2_m2.dat")
+        #ORIGINAL: arr3 = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Extrapolated_Strain\\J0040_N40\\J0040_N40_strain_at_167.0_l2_m2.dat")
+        arr3 = np.loadtxt(path_for_strain)
         rans = arr3[:,1]
         rt = arr3[:,0]
         rt.shape
@@ -489,7 +498,8 @@ if __name__ == "__main__":
         
         
         #%%
-        pwr = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Extrapolated_Strain\\J0040_N40\\J0040_N40_strain_at_167.0_l2_m2.dat")
+        #ORIGINAL: pwr = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Extrapolated_Strain\\J0040_N40\\J0040_N40_strain_at_167.0_l2_m2.dat")
+        pwr = np.loadtxt(path_for_strain)
         tp = pwr[:,0]
         rep = pwr[:,1]
         imp = pwr[:,2]
@@ -583,6 +593,10 @@ if __name__ == "__main__":
         plt.xlabel("time [100 solar masses]")
         plt.ylabel("phase [rad]")
         plt.show()
+        
+        #--------------------------------------------------------------------------
+        #End of equation 16
+        #--------------------------------------------------------------------------
     
     #Initialize simulation data
     if(len(sys.argv) < 2):
