@@ -51,6 +51,7 @@ import warnings
 import scipy.optimize
 import scipy.interpolate
 import scipy.integrate
+import argparse
 
 #-----Function Definitions-----#
 
@@ -374,20 +375,39 @@ def get_angular_momentum(python_strain):
 
 if __name__ == "__main__":
     
-
+    
+    #Attempting argparse
+    parser = argparse.ArgumentParser(description='Choose Extrapolation method')
+    parser.add_argument("--method" , choices=["POWER" , "Nakano"])
+    #parser.add_argument("--Nakano" , type=bool , help="Extrapolate using Nakano method")
+    parser.add_argument("simulation" , type=str )   ### I don't think this line is correct, will work on this
+    args = parser.parse_args()
+    if args.method == "POWER":
+        print("Extrapolating with POWER method...")
+        POWER(sys.argv, args)
+    elif args.method == "Nakano":
+        print("Extrapolating with Nakano method")
+        eq_16(sys.argv, args)
+        
+    
+    
+    
+    
     #Initialize simulation data
+    
+def POWER(argv, args):
     if(len(sys.argv) < 2):
             print("Pass in the number n of the n innermost detector radii to be used in the extrapolation (optional, default=all) and the simulation folders (e.g., ./power.py 6 ./simulations/J0040_N40 /path/to/my_simulation_folder).")
             sys.exit()
-    elif(os.path.isdir(sys.argv[1])):
+    elif(os.path.isdir(sys.argv[2])):    ###CHANGED 1 TO 2 HERE.....
             radiiUsedForExtrapolation = 7    #use the first n radii available
-            paths = sys.argv[1:]
-    elif(not os.path.isdir(sys.argv[1])):
-            radiiUsedForExtrapolation = int(sys.argv[1])    #use the first n radii available
+            paths = sys.argv[2:]         ###...AND HERE
+    elif(not os.path.isdir(sys.argv[2])):     ###...AND HERE
+            radiiUsedForExtrapolation = int(sys.argv[2])    #use the first n radii available   ###...AND HERE
             if(radiiUsedForExtrapolation < 1 or radiiUsedForExtrapolation > 7):
                     print("Invalid specified radii number")
                     sys.exit()
-            paths = sys.argv[2:]
+            paths = sys.argv[3:]      ###CHANGED 2 TO 3 HERE
 
     for sim_path in paths:
             main_dir = sim_path
@@ -432,6 +452,9 @@ if __name__ == "__main__":
                     os.makedirs(main_directory)
             if not os.path.exists(sim_dir):
                     os.makedirs(sim_dir)
+
+        ###CAN STEAL UP TO HERE --------------------------------------
+
 
             # TODO: fix this. It will fail if output-0000 does not contain any mp
             # output and also will open the output files multiple times
@@ -594,3 +617,5 @@ if __name__ == "__main__":
 
             get_energy(sim)
             get_angular_momentum(sim)
+            
+            
