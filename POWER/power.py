@@ -95,13 +95,13 @@ def loadHDF5Series(nameglob, series):
             dsets.append(fh[series])
         return joinDsets(dsets)
 
-#Function used in getting psi4 from simulation
+
+# -----------------------------------------------------------------------------
+# POWER Method
+# -----------------------------------------------------------------------------
 
 def POWER(argv, args):
-
-
-
-    
+  
     #Function used in getting psi4 from simulation
 
     
@@ -383,7 +383,6 @@ def POWER(argv, args):
     
     if __name__ == "__main__":
         
-    
         
         #Initialize simulation data
         
@@ -486,13 +485,13 @@ def POWER(argv, args):
                                 mp_psi4 = loadHDF5Series(simdirs+"mp_psi4.h5", psi4dsetname)
                                 mp_psi4_vars.append(mp_psi4)
                                 #------------------------------------------------
-                                # Coordinate conversion to Torus
+                                # Coordinate conversion to Tortoise
                                 #------------------------------------------------
                                 tortoise.append(-RadialToTortoise(radius, ADMMass))
                                 #-----------------------------------------
                                 # Prepare for conversion to strain
                                 #-----------------------------------------
-                                #Get modified Psi4 (Multiply real and imaginary psi4 columns by radii and add the tortoise coordinate to the time colum)
+                                #Get modified Psi4 (Multiply real and imaginary psi4 columns by radii and add the tortoise coordinate to the time column)
                                 mp_psi4_vars[i][:, 0] += tortoise[i]
                                 mp_psi4_vars[i][:, 1] *= radii[i]
                                 mp_psi4_vars[i][:, 2] *= radii[i]
@@ -500,7 +499,7 @@ def POWER(argv, args):
                                 #Check for psi4 amplitude going to zero
                                 cur_psi4_amp = np.sqrt(mp_psi4_vars[i][0, 1]**2 + mp_psi4_vars[i][0, 2]**2)
                                 min_psi4_amp = cur_psi4_amp
-                                # TODO: use array notatino for this since it finds the minimum amplitude
+                                # TODO: use array notation for this since it finds the minimum amplitude
                                 for j in range(0, len(mp_psi4_vars[i][:, 0])):
                                         cur_psi4_amp = np.sqrt(mp_psi4_vars[i][j, 1]**2 + mp_psi4_vars[i][j, 2]**2)
                                         if(cur_psi4_amp < min_psi4_amp):
@@ -523,6 +522,7 @@ def POWER(argv, args):
                                 np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_strain_at_"+str(radii[i])+"_l"+str(l)+"_m"+str(m)+".dat", finalhTable)
                                 strain.append(finalhTable)
                                 
+                                
                                 #-------------------------------------------------------------------
                                 # Analysis of Strain
                                 #-------------------------------------------------------------------
@@ -535,6 +535,8 @@ def POWER(argv, args):
                                 ampTable = np.column_stack((time, h_amp))
                                 ampTable = ampTable.astype(float)
                                 amp.append(ampTable)
+                                
+                        #print("h_amp:" , h_amp)
                         
                         #----------------------------------------------------------------------
                         # Extrapolation
@@ -566,7 +568,7 @@ def POWER(argv, args):
                                 interp_function = scipy.interpolate.interp1d(amp[i][:, 0], amp[i][:, 1], kind=interpolation_order)
                                 resampled_amp_vals = interp_function(t)
                                 amp[i] = np.column_stack((t, resampled_amp_vals))
-    
+
                         #Extrapolate
                         phase_extrapolation_order = 1
                         amp_extrapolation_order = 2
@@ -601,28 +603,46 @@ def POWER(argv, args):
                         for i in range(0, len(radially_extrapolated_amp)):
                                 radially_extrapolated_h_plus = np.append(radially_extrapolated_h_plus, radially_extrapolated_amp[i] * math.cos(radially_extrapolated_phase[i]))
                                 radially_extrapolated_h_cross = np.append(radially_extrapolated_h_cross, radially_extrapolated_amp[i] * math.sin(radially_extrapolated_phase[i]))
-    
+                            
+                            
                         np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_h_plus, radially_extrapolated_h_cross)))
                         np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_amplitude_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_amp)))
                         np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_phase_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_phase[:])))
-    
+                
+                print('t:', len(t))
+                print('radially_extrapolated_amp:',len(radially_extrapolated_amp))
+                
                 get_energy(sim)
                 get_angular_momentum(sim)
         
+
+# -----------------------------------------------------------------------------
+# Nakano Method
+# -----------------------------------------------------------------------------
+
         
 def eq_16(argv, args):    
 
+    # print("argv: ", argv)
+    # print("args: ", args)
+    
+    paths = argv[2:]
+    for sim_path in paths:
+                main_dir = sim_path
+                sim = os.path.split(sim_path)[-1]
+                simdirs = main_dir+"/output-????/%s/" % (sim)
+    
     #ar = np.loadtxt("/Users/pamrup/Desktop/get_ascii_data/l2_m2_r100.00.asc")
     #ar = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\get_ascii_data\\l2_m2_r100.00.asc")
-    ar = loadHDF5Series("simulations/J0040_N40/output-????/J0040_N40/mp_psi4.h5", "l2_m2_r100.00")       ####Try this
-    #ar = power_OG.loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r100.00")
-    print(ar)
+    #ar = loadHDF5Series("simulations/J0040_N40/output-????/J0040_N40/mp_psi4.h5", "l2_m2_r100.00")       ####Try this
+    ar = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r100.00")
+    print("ar: ", ar)
     t = ar[:,0]
     psi = ar[:,1]
     impsi = ar[:,2]
     
-    print("psi: ", psi)
-    print("impsi: ", impsi)
+    # print("psi: ", psi)
+    # print("impsi: ", impsi)
 
     
     
@@ -639,22 +659,23 @@ def eq_16(argv, args):
     imd_in = scipy.integrate.cumtrapz(ims_in,t[1:])
     imd_in = imd_in - imd_in[-1]
     
-    print("d_in: ", d_in)
-    print("imd_in: ", imd_in)
+    # print("d_in: ", d_in)
+    # print("imd_in: ", imd_in)
     
     
     
     #%%
     #A_val = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Gravitational_Waveform_Extractor\\POWER\\simulations\\J0040_N40\\output-0018\\J0040_N40\\quasilocalmeasures-qlm_scalars..asc")
-    A_val = np.loadtxt("./simulations/J0040_N40/output-0018/J0040_N40/quasilocalmeasures-qlm_scalars..asc")
+    A_val = np.loadtxt(main_dir+"/output-0018/J0040_N40/quasilocalmeasures-qlm_scalars..asc")
     r = float(167)
     l = float(3)
     m = float(2)
     M = A_val[:,58][-1]
     a = (A_val[:,37]/A_val[:,58])[-1]
     #ar_a = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\get_ascii_data\\l2_m2_r167.00.asc")
-    ar_a = loadHDF5Series("simulations/J0040_N40/output-????/J0040_N40/mp_psi4.h5" , "l2_m2_r167.00")
-    print(len(ar_a))
+    ar_a = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r167.00")      #This does what mp_psi4 does in POWER
+    # print("ar_a: " , ar_a)
+    # print(len(ar_a))
     t_a = ar_a[:,0]
     psi_a = ar_a[:,1]
     impsi_a = ar_a[:,2]
@@ -680,30 +701,29 @@ def eq_16(argv, args):
 
     
     #%%
+    ### ans is psi4
     ans = A*(a_1*psi[2:] - a_2*s_in[1:] + a_3*d_in) + B*(b_1*np.gradient(psi_a, t_a)[2:] - b_2*psi_a[2:]) - C*(c_1*np.gradient(psi_b, t_b)[2:] - c_2*psi_b[2:])
     imans = A*(a_1*impsi[2:] - a_2*ims_in[1:] + a_3*imd_in) + B*(b_1*np.gradient(impsi_a, t_a)[2:] - b_2*impsi_a[2:]) - C*(c_1*np.gradient(impsi_b, t_b)[2:] - c_2*impsi_b[2:])
     
-    print("ans: ", ans)
-    print("imans: ", imans)
-    
+
     #%%
-    f1 = scipy.integrate.cumtrapz(ans,t[2:])
+    f1 = scipy.integrate.cumtrapz(ans,t[2:])  
     f1 = f1-f1[-1]
-    imf1 = scipy.integrate.cumtrapz(imans,t[2:])
+    imf1 = scipy.integrate.cumtrapz(imans,t[2:]) 
     imf1 = imf1-imf1[-1]
+
     
-    print("f1: ", f1)
-    print("imf1: ", imf1)
-    
-    f2 = scipy.integrate.cumtrapz(f1,t[3:])
+    f2 = scipy.integrate.cumtrapz(f1,t[3:])  
     f2 = f2-f2[-1]
-    imf2 = scipy.integrate.cumtrapz(imf1,t[3:])
+    imf2 = scipy.integrate.cumtrapz(imf1,t[3:])   
     imf2 = imf2-imf2[-1]
     
-    print("f2: ", f2)
-    print("imf2: ", imf2)
 
 
+#### f1 and f2 is/are our gravitational wave/Strain?
+
+
+# -----------------------------------------------------------------------------
         
 #Attempting argparse
 
@@ -723,7 +743,7 @@ if args.method == "POWER":
     print("Extrapolating with POWER method...")
     POWER(sys.argv, args)
 elif args.method == "Nakano":
-    print("Extrapolating with Nakano method")
+    print("Extrapolating with Nakano method...")
     eq_16(sys.argv, args)
         
     
