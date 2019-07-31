@@ -631,6 +631,15 @@ def eq_16(argv, args):
                 main_dir = sim_path
                 sim = os.path.split(sim_path)[-1]
                 simdirs = main_dir+"/output-????/%s/" % (sim)
+                
+                #Create data directories
+                main_directory = "Extrapolated_Strain(Nakano)"
+                sim_dir = main_directory+"/"+sim
+                if not os.path.exists(main_directory):
+                        os.makedirs(main_directory)
+                if not os.path.exists(sim_dir):
+                        os.makedirs(sim_dir)
+
     
     #ar = np.loadtxt("/Users/pamrup/Desktop/get_ascii_data/l2_m2_r100.00.asc")
     #ar = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\get_ascii_data\\l2_m2_r100.00.asc")
@@ -717,6 +726,9 @@ def eq_16(argv, args):
     f2 = f2-f2[-1]
     imf2 = scipy.integrate.cumtrapz(imf1,t[3:])   
     imf2 = imf2-imf2[-1]
+    
+    np.savetxt("./Extrapolated_Strain(Nakano)/"+sim+"/"+sim+"_f2.dat" , np.column_stack((t[4:] , f2)))
+    np.savetxt("./Extrapolated_Strain(Nakano)/"+sim+"/"+sim+"_imf2.dat" , np.column_stack((t[4:] , imf2)))
     
 
 
