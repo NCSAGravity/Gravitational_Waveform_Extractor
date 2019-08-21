@@ -104,6 +104,8 @@ def POWER(argv, args):
   
     #Function used in getting psi4 from simulation
 
+    print("argv:",argv)
+    print("args:",args)
     
     #Convert radial to tortoise coordinates
     def RadialToTortoise(r, M):
@@ -385,19 +387,26 @@ def POWER(argv, args):
         
         
         #Initialize simulation data
-        
+
+              
         if(len(argv) < 2):
                 print("Pass in the number n of the n innermost detector radii to be used in the extrapolation (optional, default=all) and the simulation folders (e.g., ./power.py 6 ./simulations/J0040_N40 /path/to/my_simulation_folder).")
                 sys.exit()
-        elif(os.path.isdir(argv[2])):    ###CHANGED 1 TO 2 HERE.....
+        elif(os.path.isdir(argv[2])):    
                 radiiUsedForExtrapolation = 7    #use the first n radii available
-                paths = argv[2:]         ###...AND HERE
-        elif(not os.path.isdir(argv[2])):     ###...AND HERE
+                paths = argv[2:]         
+        elif(not os.path.isdir(argv[2])):     
                 radiiUsedForExtrapolation = int(argv[2])    #use the first n radii available   ###...AND HERE
                 if(radiiUsedForExtrapolation < 1 or radiiUsedForExtrapolation > 7):
                         print("Invalid specified radii number")
                         sys.exit()
-                paths = argv[3:]      ###CHANGED 2 TO 3 HERE
+                paths = argv[3:]      
+                
+                
+        print("Radii to be used:", radiiUsedForExtrapolation)
+        print(argv[2])
+        print(argv[2:])
+
     
         for sim_path in paths:
                 main_dir = sim_path
@@ -615,31 +624,56 @@ def POWER(argv, args):
                 get_energy(sim)
                 get_angular_momentum(sim)
         
+        print("simdirs:",simdirs)
+        print("out_files:",out_files)
+        print("par_files:",par_files)
 
 # -----------------------------------------------------------------------------
 # Nakano Method
 # -----------------------------------------------------------------------------
 
         
+       
+        
 def eq_16(argv, args):    
 
-    # print("argv: ", argv)
-    # print("args: ", args)
+    print("argv: ", argv)
+    print("args: ", args)
     
-    paths = argv[2:]
-    for sim_path in paths:
-                main_dir = sim_path
-                sim = os.path.split(sim_path)[-1]
-                simdirs = main_dir+"/output-????/%s/" % (sim)
-                
-                #Create data directories
-                main_directory = "Extrapolated_Strain(Nakano)"
-                sim_dir = main_directory+"/"+sim
-                if not os.path.exists(main_directory):
-                        os.makedirs(main_directory)
-                if not os.path.exists(sim_dir):
-                        os.makedirs(sim_dir)
+    paths = argv[2]
+    
 
+    main_dir = paths
+    sim = os.path.split(paths)[-1]
+    simdirs = main_dir+"/output-????/%s/" % (sim)
+    
+    #Create data directories
+    main_directory = "Extrapolated_Strain(Nakano)"
+    sim_dir = main_directory+"/"+sim
+    if not os.path.exists(main_directory):
+            os.makedirs(main_directory)
+    if not os.path.exists(sim_dir):
+            os.makedirs(sim_dir)
+    
+     
+    
+    # for sim_path in paths:
+    #             main_dir = sim_path
+    #             sim = os.path.split(sim_path)[-1]
+    #             simdirs = main_dir+"/output-????/%s/" % (sim)
+                
+    #             #Create data directories
+    #             main_directory = "Extrapolated_Strain(Nakano)"
+    #             sim_dir = main_directory+"/"+sim
+    #             if not os.path.exists(main_directory):
+    #                     os.makedirs(main_directory)
+    #             if not os.path.exists(sim_dir):
+    #                     os.makedirs(sim_dir)
+
+    print("paths:",paths)
+    print("simdirs:", simdirs)
+    print("main_dir:", main_dir)
+    
     
     #ar = np.loadtxt("/Users/pamrup/Desktop/get_ascii_data/l2_m2_r100.00.asc")
     #ar = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\get_ascii_data\\l2_m2_r100.00.asc")
@@ -682,7 +716,7 @@ def eq_16(argv, args):
     M = A_val[:,58][-1]
     a = (A_val[:,37]/A_val[:,58])[-1]
     #ar_a = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\get_ascii_data\\l2_m2_r167.00.asc")
-    ar_a = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r167.00")      #This does what mp_psi4 does in POWER
+    ar_a = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r100.00")      #This does what mp_psi4 does in POWER
     # print("ar_a: " , ar_a)
     # print(len(ar_a))
     t_a = ar_a[:,0]
@@ -726,9 +760,12 @@ def eq_16(argv, args):
     f2 = f2-f2[-1]
     imf2 = scipy.integrate.cumtrapz(imf1,t[3:])   
     imf2 = imf2-imf2[-1]
+
+    complex_psi = f2 + 1j*imf2
+
+    print(complex_psi)
     
-    np.savetxt("./Extrapolated_Strain(Nakano)/"+sim+"/"+sim+"_f2.dat" , np.column_stack((t[4:] , f2)))
-    np.savetxt("./Extrapolated_Strain(Nakano)/"+sim+"/"+sim+"_imf2.dat" , np.column_stack((t[4:] , imf2)))
+    np.savetxt("./Extrapolated_Strain(Nakano)/"+sim+"/"+sim+"_f2.dat" , np.column_stack((t[4:] , complex_psi.real , complex_psi.imag)))
     
 
 
@@ -748,10 +785,11 @@ def dir_path(string):
 
 parser = argparse.ArgumentParser(description='Choose Extrapolation method')
 parser.add_argument("method" , choices=["POWER" , "Nakano"])
-#parser.add_argument("--Nakano" , type=bool , help="Extrapolate using Nakano method")
-parser.add_argument("path" , type=dir_path , help="Simulation to be used here" )   ### I don't think this line is correct, will work on this
+parser.add_argument("radii" , type=int , help="Number of radii to be used")
+parser.add_argument("path" , type=dir_path , help="Simulation to be used here" )
 args = parser.parse_args()
 if args.method == "POWER":
+    
     print("Extrapolating with POWER method...")
     POWER(sys.argv, args)
 elif args.method == "Nakano":
