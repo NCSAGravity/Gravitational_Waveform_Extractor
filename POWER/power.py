@@ -405,12 +405,12 @@ def POWER(argv, args):
                 if(radiiUsedForExtrapolation < 1 or radiiUsedForExtrapolation > 7):
                         print("Invalid specified radii number")
                         sys.exit()
-                paths = argv[3:]      
+                paths = argv[4:]      
                 
                 
         print("Radii to be used:", radiiUsedForExtrapolation)
-        print(argv[2])
-        print(argv[2:])
+        print("argv[2]:", argv[2])
+        print("argv[2:]:", argv[2:])
         print("len(argv):",len(argv))
         
 
@@ -658,6 +658,9 @@ def eq_29(argv, args):
             os.makedirs(main_directory)
     if not os.path.exists(sim_dir):
             os.makedirs(sim_dir)
+            
+    # dsetname = "l%d_m%d_100.00" %(l,m)
+    # dsetname_a = "l%d_m%d_100.00" %(l+1,m)
   
     
     ar = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r100.00")
@@ -750,18 +753,20 @@ def dir_path(string):
 
 parser = argparse.ArgumentParser(description='Choose Extrapolation method')
 parser.add_argument("method" , choices=["POWER" , "Nakano"] , help="Extrapolation method to be used here")
-#parser.add_argument("radii" , type=int , help="Number of radii to be used")
+parser.add_argument('-r', "--radii" , type=int , help="Number of radii to be used", default=7)
 parser.add_argument("path" , type=dir_path , help="Simulation to be used here")
 args = parser.parse_args()
 
-# if args.method == "POWER":        
-#     print("Extrapolating with POWER method...") 
-#     print("sys.argv: %" % (sys.argv))
-#     print("args: %" % (args))
-#     #POWER(sys.argv, args)
-if args.method == "POWER":
-        print("Extrapolating with POWER method...")
-        POWER(sys.argv, args)
+if args.method == "POWER":        
+    print("Extrapolating with POWER method...")
+    POWER(sys.argv, args)
+    
+    
+# if args.method == "POWER":
+#         print("Extrapolating with POWER method...")
+#         POWER(sys.argv, args)
+    
+    
 elif args.method == "Nakano":
         print("Extrapolating with Nakano method...")
         eq_29(sys.argv, args)    
