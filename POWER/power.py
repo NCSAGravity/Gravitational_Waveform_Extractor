@@ -295,7 +295,7 @@ def POWER(argv, args):
         val = val.astype(np.complex_)
         cur_max_time = python_strain[0][0]
         cur_max_amp = abs(pow(python_strain[0][1], 2))
-        # TODO: rewrite as array operations (use numpy.argmax)
+        # TODO: rewrite as array operations (use np.argmax)
         for i in python_strain[:]:
             cur_time = i[0]
             cur_amp = abs(pow(i[1], 2))
@@ -324,7 +324,7 @@ def POWER(argv, args):
             prod = np.multiply(dh, dh_conj)
             local_val = np.zeros(len(t))
             local_val = local_val.astype(np.complex_)
-                    # TODO: rewrite as array notation using numpy.cumtrapz
+                    # TODO: rewrite as array notation using np.cumtrapz
             for i in range(0, len(t)):
                 local_val[i] = np.trapz(prod[:i], x=(t[:i]))
             val += local_val
@@ -343,7 +343,7 @@ def POWER(argv, args):
         val = val.astype(np.complex_)
         cur_max_time = python_strain[0][0]
         cur_max_amp = abs(pow(python_strain[0][1], 2))
-        # TODO: rewrite as array operations (use numpy.argmax)
+        # TODO: rewrite as array operations (use np.argmax)
         for i in python_strain[:]:
             cur_time = i[0]
             cur_amp = abs(pow(i[1], 2))
@@ -373,7 +373,7 @@ def POWER(argv, args):
             prod = np.multiply(h, dh_conj)
             local_val = np.zeros(len(t))
             local_val = local_val.astype(np.complex_)
-                    # TODO: rewrite as array notation using numpy.cumtrapz. Move atoi call out of inner loop.
+                    # TODO: rewrite as array notation using np.cumtrapz. Move atoi call out of inner loop.
             for i in range(0, len(t)):
                 local_val[i] = np.trapz(prod[:i], x=(t[:i])) * int(((path.split("_")[-1]).split("m")[-1]).split(".")[0])
             val += local_val
@@ -393,10 +393,15 @@ def POWER(argv, args):
                 print("Pass in the number n of the n innermost detector radii to be used in the extrapolation (optional, default=all) and the simulation folders (e.g., ./power.py 6 ./simulations/J0040_N40 /path/to/my_simulation_folder).")
                 sys.exit()
         elif(os.path.isdir(argv[2])):    
-                radiiUsedForExtrapolation = 7    #use the first n radii available
-                paths = argv[2:]         
+                radiiUsedForExtrapolation = 7    #use the first n radii available i.e. no radii specified, defaults to 7
+                paths = argv[2:] 
+                
+        # elif(len(argv) == 4):                               # if user specifies number of radii
+        #         radiiUsedForExtrapolation = int(argv[2])
+        #         paths = argv[4:]
+                
         elif(not os.path.isdir(argv[2])):     
-                radiiUsedForExtrapolation = int(argv[2])    #use the first n radii available   ###...AND HERE
+                radiiUsedForExtrapolation = int(argv[2])    #use the first n radii available  
                 if(radiiUsedForExtrapolation < 1 or radiiUsedForExtrapolation > 7):
                         print("Invalid specified radii number")
                         sys.exit()
@@ -406,6 +411,8 @@ def POWER(argv, args):
         print("Radii to be used:", radiiUsedForExtrapolation)
         print(argv[2])
         print(argv[2:])
+        print("len(argv):",len(argv))
+        
 
     
         for sim_path in paths:
@@ -624,9 +631,9 @@ def POWER(argv, args):
                 get_energy(sim)
                 get_angular_momentum(sim)
         
-        print("simdirs:",simdirs)
-        print("out_files:",out_files)
-        print("par_files:",par_files)
+        # print("simdirs:",simdirs)
+        # print("out_files:",out_files)
+        # print("par_files:",par_files)
 
 # -----------------------------------------------------------------------------
 # Nakano Method
@@ -635,102 +642,58 @@ def POWER(argv, args):
         
        
         
-def eq_16(argv, args):    
+def eq_29(argv, args):
 
-    print("argv: ", argv)
-    print("args: ", args)
-    
     paths = argv[2]
     
 
     main_dir = paths
     sim = os.path.split(paths)[-1]
     simdirs = main_dir+"/output-????/%s/" % (sim)
-    
-    #Create data directories
-    main_directory = "Extrapolated_Strain(Nakano)"
+  
+
+    main_directory = "Extrapolated_Strain(Nakano_Kerr)"
     sim_dir = main_directory+"/"+sim
     if not os.path.exists(main_directory):
             os.makedirs(main_directory)
     if not os.path.exists(sim_dir):
             os.makedirs(sim_dir)
+  
     
-     
-    
-    # for sim_path in paths:
-    #             main_dir = sim_path
-    #             sim = os.path.split(sim_path)[-1]
-    #             simdirs = main_dir+"/output-????/%s/" % (sim)
-                
-    #             #Create data directories
-    #             main_directory = "Extrapolated_Strain(Nakano)"
-    #             sim_dir = main_directory+"/"+sim
-    #             if not os.path.exists(main_directory):
-    #                     os.makedirs(main_directory)
-    #             if not os.path.exists(sim_dir):
-    #                     os.makedirs(sim_dir)
-
-    print("paths:",paths)
-    print("simdirs:", simdirs)
-    print("main_dir:", main_dir)
-    
-    
-    #ar = np.loadtxt("/Users/pamrup/Desktop/get_ascii_data/l2_m2_r100.00.asc")
-    #ar = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\get_ascii_data\\l2_m2_r100.00.asc")
-    #ar = loadHDF5Series("simulations/J0040_N40/output-????/J0040_N40/mp_psi4.h5", "l2_m2_r100.00")       ####Try this
     ar = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r100.00")
-    print("ar: ", ar)
     t = ar[:,0]
     psi = ar[:,1]
     impsi = ar[:,2]
-    
-    # print("psi: ", psi)
-    # print("impsi: ", impsi)
 
-    
-    
-    #%%
+        
     s_in = scipy.integrate.cumtrapz(psi,t)
     ims_in = scipy.integrate.cumtrapz(impsi,t)
     s_in = s_in - s_in[-1]
     ims_in = ims_in - ims_in[-1]
 
     
-    #%%
     d_in = scipy.integrate.cumtrapz(s_in,t[1:])
     d_in = d_in - d_in[-1]
     imd_in = scipy.integrate.cumtrapz(ims_in,t[1:])
     imd_in = imd_in - imd_in[-1]
-    
-    # print("d_in: ", d_in)
-    # print("imd_in: ", imd_in)
-    
-    
-    
-    #%%
-    #A_val = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\Gravitational_Waveform_Extractor\\POWER\\simulations\\J0040_N40\\output-0018\\J0040_N40\\quasilocalmeasures-qlm_scalars..asc")
+
+
     A_val = np.loadtxt(main_dir+"/output-0018/J0040_N40/quasilocalmeasures-qlm_scalars..asc")
     r = float(167)
     l = float(3)
     m = float(2)
     M = A_val[:,58][-1]
     a = (A_val[:,37]/A_val[:,58])[-1]
-    #ar_a = np.loadtxt("C:\\Users\\Brock\\Documents\\UIUC\\Gravity Group\\POWER_project\\get_ascii_data\\l2_m2_r167.00.asc")
-    ar_a = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r100.00")      #This does what mp_psi4 does in POWER
-    # print("ar_a: " , ar_a)
-    # print(len(ar_a))
+    ar_a = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r100.00")
     t_a = ar_a[:,0]
     psi_a = ar_a[:,1]
     impsi_a = ar_a[:,2]
     t_b = t_a
     psi_b = np.zeros(len(psi_a))
     impsi_b = np.zeros(len(impsi_a))
-    
-    print(a,M)
-
+    print (a,M)
     
     
-    #%%
     A = 1-(2*M/r)
     a_1 = r
     a_2 = ((l-1)*(l+2))/(2*r)
@@ -741,32 +704,33 @@ def eq_16(argv, args):
     C = ((0+a*2j)/((l)**2))*((((l+2)*(l-2)*(l+m)*(l-m))/((2*l-1)*(2*l+1)))**(1/2))
     c_1 = r
     c_2 = (l-2)*(l+1)
-
     
-    #%%
-    ### ans is psi4
+  
     ans = A*(a_1*psi[2:] - a_2*s_in[1:] + a_3*d_in) + B*(b_1*np.gradient(psi_a, t_a)[2:] - b_2*psi_a[2:]) - C*(c_1*np.gradient(psi_b, t_b)[2:] - c_2*psi_b[2:])
     imans = A*(a_1*impsi[2:] - a_2*ims_in[1:] + a_3*imd_in) + B*(b_1*np.gradient(impsi_a, t_a)[2:] - b_2*impsi_a[2:]) - C*(c_1*np.gradient(impsi_b, t_b)[2:] - c_2*impsi_b[2:])
+ 
     
-
-    #%%
-    f1 = scipy.integrate.cumtrapz(ans,t[2:])  
+    f1 = scipy.integrate.cumtrapz(ans,t[2:])
     f1 = f1-f1[-1]
-    imf1 = scipy.integrate.cumtrapz(imans,t[2:]) 
+    imf1 = scipy.integrate.cumtrapz(imans,t[2:])
     imf1 = imf1-imf1[-1]
-
     
-    f2 = scipy.integrate.cumtrapz(f1,t[3:])  
+    f2 = scipy.integrate.cumtrapz(f1,t[3:])
     f2 = f2-f2[-1]
-    imf2 = scipy.integrate.cumtrapz(imf1,t[3:])   
+    imf2 = scipy.integrate.cumtrapz(imf1,t[3:])
     imf2 = imf2-imf2[-1]
-
-    complex_psi = f2 + 1j*imf2
-
-    print(complex_psi)
     
-    np.savetxt("./Extrapolated_Strain(Nakano)/"+sim+"/"+sim+"_f2.dat" , np.column_stack((t[4:] , complex_psi.real , complex_psi.imag)))
+
+    f3_cmp = f2 + imf2*1j
+    imf3 = f3_cmp.imag
+    f3 = f3_cmp.real
+
+
+
+    complex_psi = f3 + 1j*imf3
+
     
+    np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+sim+"_f2.dat" , np.column_stack((t[4:] , complex_psi.real , complex_psi.imag)))   
 
 
 #### f1 and f2 is/are our gravitational wave/Strain?
@@ -781,22 +745,27 @@ def dir_path(string):
     if os.path.isdir(string):
         return string
     else:
-        raise NotADirectoryError(string)
+        print("Not a directory: %s" %(string))
+        # raise NotADirectoryError(string)
 
 parser = argparse.ArgumentParser(description='Choose Extrapolation method')
-parser.add_argument("method" , choices=["POWER" , "Nakano"])
-parser.add_argument("radii" , type=int , help="Number of radii to be used")
-parser.add_argument("path" , type=dir_path , help="Simulation to be used here" )
+parser.add_argument("method" , choices=["POWER" , "Nakano"] , help="Extrapolation method to be used here")
+#parser.add_argument("radii" , type=int , help="Number of radii to be used")
+parser.add_argument("path" , type=dir_path , help="Simulation to be used here")
 args = parser.parse_args()
+
+# if args.method == "POWER":        
+#     print("Extrapolating with POWER method...") 
+#     print("sys.argv: %" % (sys.argv))
+#     print("args: %" % (args))
+#     #POWER(sys.argv, args)
 if args.method == "POWER":
-    
-    print("Extrapolating with POWER method...")
-    POWER(sys.argv, args)
+        print("Extrapolating with POWER method...")
+        POWER(sys.argv, args)
 elif args.method == "Nakano":
-    print("Extrapolating with Nakano method...")
-    eq_16(sys.argv, args)
-        
-    
+        print("Extrapolating with Nakano method...")
+        eq_29(sys.argv, args)    
+  
     
     
             
