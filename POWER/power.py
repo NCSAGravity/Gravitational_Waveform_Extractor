@@ -644,7 +644,14 @@ def POWER(argv, args):
         
 def eq_29(argv, args):
 
-    paths = argv[2]
+
+    if len(argv) < 5:
+        print("Error: Please specify modes...e.g. 'power.py -m 2,2 Nakano [simpath]' for the 2,2 mode")
+        sys.exit()
+    
+    paths = argv[4]
+    
+    print('paths:',paths)
     
 
     main_dir = paths
@@ -663,7 +670,21 @@ def eq_29(argv, args):
     # dsetname_a = "l%d_m%d_100.00" %(l+1,m)
   
     
-    ar = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r100.00")
+    landm = argv[2]
+    landm = landm.split(',')
+    print("landm:",landm)
+    l = int(landm[0])
+    m = int(landm[1])
+    
+    print('l:',l)
+    print('m:',m)
+    
+    modes = "l%d_m%d_r100.00" %(l,m)
+    ar = loadHDF5Series(simdirs+"mp_psi4.h5" , modes)
+    
+    print("ar:",ar)
+    
+
     t = ar[:,0]
     psi = ar[:,1]
     impsi = ar[:,2]
@@ -681,13 +702,19 @@ def eq_29(argv, args):
     imd_in = imd_in - imd_in[-1]
 
 
-    A_val = np.loadtxt(main_dir+"/output-0018/J0040_N40/quasilocalmeasures-qlm_scalars..asc")
+    A_val = np.loadtxt(main_dir+"/output-0018/J0040_N40/quasilocalmeasures-qlm_scalars..asc")    ## For mass calculation
     r = float(167)
     l = float(3)
     m = float(2)
     M = A_val[:,58][-1]
     a = (A_val[:,37]/A_val[:,58])[-1]
-    ar_a = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r100.00")
+    # ar_a = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r100.00")
+    
+    modes_a = "l%d_m%d_r100.00" %(l+1,m)
+    ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
+    
+    print("ar_a:",ar_a)
+    
     t_a = ar_a[:,0]
     psi_a = ar_a[:,1]
     impsi_a = ar_a[:,2]
@@ -753,7 +780,8 @@ def dir_path(string):
 
 parser = argparse.ArgumentParser(description='Choose Extrapolation method')
 parser.add_argument("method" , choices=["POWER" , "Nakano"] , help="Extrapolation method to be used here")
-parser.add_argument('-r', "--radii" , type=int , help="Number of radii to be used", default=7)
+parser.add_argument('-r', "--radii" , type=int , help="For POWER method; Number of radii to be used", default=7)
+parser.add_argument('-m' , "--modes" , type=str , help="For Nakano method; modes to use, l,m")
 parser.add_argument("path" , type=dir_path , help="Simulation to be used here")
 args = parser.parse_args()
 
