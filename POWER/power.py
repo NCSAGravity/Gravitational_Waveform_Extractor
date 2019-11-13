@@ -459,7 +459,6 @@ def POWER(argv, args):
                 if not os.path.exists(sim_dir):
                         os.makedirs(sim_dir)
     
-            ###CAN STEAL UP TO HERE --------------------------------------
     
     
                 # TODO: fix this. It will fail if output-0000 does not contain any mp
@@ -655,8 +654,12 @@ def eq_29(argv, args):
     
 
     main_dir = paths
+    print("main_dir:",main_dir)
     sim = os.path.split(paths)[-1]
+    print("sim:",sim)
     simdirs = main_dir+"/output-????/%s/" % (sim)
+    print("simdirs:",simdirs)
+
   
 
     main_directory = "Extrapolated_Strain(Nakano_Kerr)"
@@ -666,8 +669,6 @@ def eq_29(argv, args):
     if not os.path.exists(sim_dir):
             os.makedirs(sim_dir)
             
-    # dsetname = "l%d_m%d_100.00" %(l,m)
-    # dsetname_a = "l%d_m%d_100.00" %(l+1,m)
   
     
     landm = argv[2]
@@ -675,19 +676,23 @@ def eq_29(argv, args):
     print("landm:",landm)
     l = int(landm[0])
     m = int(landm[1])
+    if m > l:                                                           ### Fail if m > l
+        print("Error: %s is a non-physical mode" % (landm))
+        sys.exit()
     
     print('l:',l)
     print('m:',m)
     
     modes = "l%d_m%d_r100.00" %(l,m)
+    print("modes:", modes)
     ar = loadHDF5Series(simdirs+"mp_psi4.h5" , modes)
     
     print("ar:",ar)
-    
 
     t = ar[:,0]
     psi = ar[:,1]
     impsi = ar[:,2]
+    # print("psi:",psi)
 
         
     s_in = scipy.integrate.cumtrapz(psi,t)
@@ -701,27 +706,56 @@ def eq_29(argv, args):
     imd_in = scipy.integrate.cumtrapz(ims_in,t[1:])
     imd_in = imd_in - imd_in[-1]
 
-
-    A_val = np.loadtxt(main_dir+"/output-0018/J0040_N40/quasilocalmeasures-qlm_scalars..asc")    ## For mass calculation
+    
+    mass_path = glob.glob(simdirs)
+    # A_val = np.loadtxt(main_dir+"/output-0018/J0040_N40/quasilocalmeasures-qlm_scalars..asc")    
+    A_val = np.loadtxt(mass_path[-1]+"quasilocalmeasures-qlm_scalars..asc")     ## For mass calculation
     r = float(167)
-    l = float(3)
-    m = float(2)
+    # l = float(3)
+    # m = float(2)
     M = A_val[:,58][-1]
     a = (A_val[:,37]/A_val[:,58])[-1]
     # ar_a = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r100.00")
     
-    modes_a = "l%d_m%d_r100.00" %(l+1,m)
+    print("l:",l)
+    print("m:",m)
+    
+    modes_a = "l%d_m%d_r100.00" %(l+1,m)         # "top" modes
     ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
     
-    print("ar_a:",ar_a)
+    modes_b = "l%d_m%d_r100.00" %(l-1,m)         # "bottom" modes
+    
+    
     
     t_a = ar_a[:,0]
     psi_a = ar_a[:,1]
     impsi_a = ar_a[:,2]
     t_b = t_a
-    psi_b = np.zeros(len(psi_a))
-    impsi_b = np.zeros(len(impsi_a))
+
     print (a,M)
+    # print("psi_a",psi_a)
+    # print("psi_b",psi_b)
+
+
+    if m > l-1:                                     # if m is greater than the bottom mode...
+        psi_b = np.zeros(len(psi_a))                # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
+        impsi_b = np.zeros(len(impsi_a))
+        print("We're in the if statement")
+        print("psi_b:",psi_b)
+        print("impsi_b",impsi_b)
+    else:
+        ar_b = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_b)
+        psi_b = ar_b[:,1]      
+        impsi_b = ar_b[:,2]
+        print("We're in the else statement")
+        print("ar_b:",ar_b)
+    
+    print("ar_a:",ar_a)
+    
+    print("len of ar:",len(ar))
+    print("len of psi:",len(psi))
+    
+    
     
     
     A = 1-(2*M/r)
@@ -799,7 +833,6 @@ elif args.method == "Nakano":
         print("Extrapolating with Nakano method...")
         eq_29(sys.argv, args)    
   
-    
-    
-            
+
+
             
