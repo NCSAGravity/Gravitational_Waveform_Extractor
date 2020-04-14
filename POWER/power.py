@@ -55,6 +55,7 @@ import argparse
 #-----Function Definitions-----#
 
 def joinDsets(dsets):
+    
         """joints multiple datasets which each have a
         time like first column, eg iteration number of
         time. Removes overlapping segments, keeping the
@@ -326,7 +327,7 @@ def POWER(argv, args):
             local_val = local_val.astype(np.complex_)
                     # TODO: rewrite as array notation using np.cumtrapz
             for i in range(0, len(t)):
-                local_val[i] = np.trapz(prod[:i], x=(t[:i]))
+                local_val[i] = scipy.integrate.cumtrapz(prod[:i], x=(t[:i]))
             val += local_val
             
         val *= 1/(16 * math.pi)
@@ -375,7 +376,7 @@ def POWER(argv, args):
             local_val = local_val.astype(np.complex_)
                     # TODO: rewrite as array notation using np.cumtrapz. Move atoi call out of inner loop.
             for i in range(0, len(t)):
-                local_val[i] = np.trapz(prod[:i], x=(t[:i])) * int(((path.split("_")[-1]).split("m")[-1]).split(".")[0])
+                local_val[i] = scipy.integrate.cumtrapz(prod[:i], x=(t[:i])) * int(((path.split("_")[-1]).split("m")[-1]).split(".")[0])
             val += local_val
             
         val *= 1/(16 * math.pi)
@@ -412,6 +413,8 @@ def POWER(argv, args):
         print("argv[2]:", argv[2])
         print("argv[2:]:", argv[2:])
         print("len(argv):",len(argv))
+        
+        sys.exit()
         
 
     
@@ -481,17 +484,19 @@ def POWER(argv, args):
                                         dsets[(radius, mode)] = dset
                         modes = sorted(modes)
                         radii = sorted(radii)
-    
+                        
                 #Get Psi4
+                print("radii:",radii)
+                print("modes:",modes)
                 
-                for (l,m) in modes:
+                for (l,m) in modes:                      # 25 times through the loop, from (1,1) to (4,4) 
                         #Get Tortoise Coordinate
                         mp_psi4_vars = []
                         tortoise = []    
                         strain = []
                         phase = []
                         amp = []
-                        for i in range(len(radii)):
+                        for i in range(len(radii)):      # so 7 times through each mode at each of the 7 radii
                                 #------------------------------------------------
                                 # Read in HDF5 data
                                 #------------------------------------------------                 
@@ -526,7 +531,7 @@ def POWER(argv, args):
                                 #-----------------------------------------------------------------
                                 # Strain Conversion
                                 #-----------------------------------------------------------------
-                                hTable = psi4ToStrain(mp_psi4_vars[i], f0)
+                                hTable = psi4ToStrain(mp_psi4_vars[i], f0)  # table of strain
                                 time = hTable[:, 0]
                                 h = hTable[:, 1]
                                 hplus = h.real
@@ -543,13 +548,16 @@ def POWER(argv, args):
                                 #-------------------------------------------------------------------
                                 #Get phase and amplitude of strain
                                 h_phase = np.unwrap(np.angle(h))
-                                angleTable = np.column_stack((time, h_phase))
-                                angleTable = angleTable.astype(float)
-                                phase.append(angleTable)
+                                # print(len(h_phase), "h_phase length")
+                                # print(len(time), "time length")
+                                angleTable = np.column_stack((time, h_phase))     ### start here 
+                                angleTable = angleTable.astype(float)             ### b/c t is defined based on
+                                phase.append(angleTable)                          ### time here 
                                 h_amp = np.absolute(h)
                                 ampTable = np.column_stack((time, h_amp))
                                 ampTable = ampTable.astype(float)
                                 amp.append(ampTable)
+                                
                                 
                         #print("h_amp:" , h_amp)
                         
@@ -558,6 +566,7 @@ def POWER(argv, args):
                         #----------------------------------------------------------------------
                         #Interpolate phase and amplitude
                         t = phase[0][:, 0]
+                        # print(len(t), "length of t")
                         last_t = phase[radiiUsedForExtrapolation - 1][-1, 0]
                         last_index = 0;
                         # TODO: use array notation for this (this is a boolean
@@ -567,10 +576,14 @@ def POWER(argv, args):
                                         last_index = i
                                         break
                         last_index = last_index-1
-                        t = phase[0][0:last_index, 0]
+                        t = phase[0][0:last_index, 0]    ### array gets shrunk here ... must do it for a reason
+                        # print(len(t), "length of t")    
+                        # print("t" , t)
                         dts = t[1:] - t[:-1]
                         dt = float(np.amin(dts))
-                        t = np.arange(phase[0][0, 0], phase[0][last_index, 0], dt)
+                        t = np.arange(phase[0][0, 0], phase[0][last_index, 0], dt)      
+                        
+                        
                         interpolation_order = 9
                         for i in range(0, radiiUsedForExtrapolation):
                                 interp_function = scipy.interpolate.interp1d(phase[i][:, 0], phase[i][:, 1], kind=interpolation_order)
@@ -592,11 +605,12 @@ def POWER(argv, args):
                         # TODO: replace by np.ones (which is all it does anyway)
                         A_phase = np.power(radii, 0)
                         A_amp = np.power(radii, 0)
+
                         for i in range(1, phase_extrapolation_order+1):
-                                A_phase = np.column_stack((A_phase, np.power(radii, -1*i)))
+                                A_phase = np.column_stack((A_phase, np.power(radii, -1*i*math.pi)))
     
                         for i in range(1, amp_extrapolation_order+1):
-                                A_amp = np.column_stack((A_amp, np.power(radii, -1*i)))
+                                A_amp = np.column_stack((A_amp, np.power(radii, -1*i*math.pi)))
     
                         radially_extrapolated_phase = np.empty(0)
                         radially_extrapolated_amp = np.empty(0)
@@ -624,8 +638,16 @@ def POWER(argv, args):
                         np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_amplitude_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_amp)))
                         np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_phase_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_phase[:])))
                 
-                print('t:', len(t))
+                print("len(hTable)" , len(hTable))
+                print("hTable" , hTable)
+                print("len(time):" , len(time))
+                print("time:",time)
+                print("t:" , t)
+                print('len(t):', len(t))
                 print('radially_extrapolated_amp:',len(radially_extrapolated_amp))
+                print("mp_psi4_vars",mp_psi4_vars)
+                print("mp_psi4",mp_psi4)
+                print("f0:",f0)
                 
                 get_energy(sim)
                 get_angular_momentum(sim)
@@ -634,18 +656,21 @@ def POWER(argv, args):
         # print("out_files:",out_files)
         # print("par_files:",par_files)
 
+
+
+
 # -----------------------------------------------------------------------------
 # Nakano Method
 # -----------------------------------------------------------------------------
 
         
-       
-        
 def eq_29(argv, args):
 
-
+    print(len(argv))
+### Finding the path in the command line command
+    
     if len(argv) < 5:
-        print("Error: Please specify modes...e.g. 'power.py -m 2,2 Nakano [simpath]' for the 2,2 mode")
+        print("Error: Please specify mode...e.g. 'power.py -m 2,2 Nakano [simpath]' for the 2,2 mode")
         sys.exit()
     
     paths = argv[4]
@@ -661,6 +686,7 @@ def eq_29(argv, args):
     print("simdirs:",simdirs)
 
   
+### Setting up directory for saving the file(s) at the end ###
 
     main_directory = "Extrapolated_Strain(Nakano_Kerr)"
     sim_dir = main_directory+"/"+sim
@@ -669,132 +695,158 @@ def eq_29(argv, args):
     if not os.path.exists(sim_dir):
             os.makedirs(sim_dir)
             
-  
+### ---------
+            
+    radii_list = [100.00 , 115.00 , 136.00 , 167.00, 214.00 , 300.00 , 500.00]
     
-    landm = argv[2]
-    landm = landm.split(',')
-    print("landm:",landm)
-    l = int(landm[0])
-    m = int(landm[1])
-    if m > l:                                                           ### Fail if m > l
-        print("Error: %s is a non-physical mode" % (landm))
-        sys.exit()
+    for i in radii_list:
     
-    print('l:',l)
-    print('m:',m)
-    
-    modes = "l%d_m%d_r100.00" %(l,m)
-    print("modes:", modes)
-    ar = loadHDF5Series(simdirs+"mp_psi4.h5" , modes)
-    
-    print("ar:",ar)
-
-    t = ar[:,0]
-    psi = ar[:,1]
-    impsi = ar[:,2]
-    # print("psi:",psi)
-
+            landm = argv[2]
+            landm = landm.split(',')
+            print("landm:",landm)
+            l = int(landm[0])
+            m = int(landm[1])
+            radius = float(i)
+            print("radius:",radius)
+            if m > l:                                                           ### Fail if m > l
+                print("Error: %s is a non-physical mode" % (landm))
+                sys.exit()
+            
+            print('l:',l)
+            print('m:',m)
+            
+            modes = "l%d_m%d_r%.2f" %(l,m,radius)    
+            print("modes:", modes)
+            ar = loadHDF5Series(simdirs+"mp_psi4.h5" , modes)   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
+            
+            print("ar:",ar)
         
-    s_in = scipy.integrate.cumtrapz(psi,t)
-    ims_in = scipy.integrate.cumtrapz(impsi,t)
-    s_in = s_in - s_in[-1]
-    ims_in = ims_in - ims_in[-1]
+            t = ar[:,0]      # 1st column of ar, time data points
+            # print("t:" , t)
+            print("len(t):" , len(t))
+            psi = ar[:,1]    # 2nd column of ar, data points for psi
+            print("len(")
+            impsi = ar[:, 2]   # 3rd column of ar, data points for imaginary psi
+            # print("psi:",psi)
+            
+                 
+            s_in = scipy.integrate.cumtrapz(psi,t)        # Integrates psi along time, i.e. psi(t) 
+            ims_in = scipy.integrate.cumtrapz(impsi,t)    # Integrates impsi along time, i.e. impsi(t)
+            print("s_in_pre:",s_in)
+            print(len(s_in))
+            print(s_in[-1])
 
-    
-    d_in = scipy.integrate.cumtrapz(s_in,t[1:])
-    d_in = d_in - d_in[-1]
-    imd_in = scipy.integrate.cumtrapz(ims_in,t[1:])
-    imd_in = imd_in - imd_in[-1]
-
-    
-    mass_path = glob.glob(simdirs)
-    # A_val = np.loadtxt(main_dir+"/output-0018/J0040_N40/quasilocalmeasures-qlm_scalars..asc")    
-    A_val = np.loadtxt(mass_path[-1]+"quasilocalmeasures-qlm_scalars..asc")     ## For mass calculation
-    r = float(167)
-    # l = float(3)
-    # m = float(2)
-    M = A_val[:,58][-1]
-    a = (A_val[:,37]/A_val[:,58])[-1]
-    # ar_a = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r100.00")
-    
-    print("l:",l)
-    print("m:",m)
-    
-    modes_a = "l%d_m%d_r100.00" %(l+1,m)         # "top" modes
-    ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
-    
-    modes_b = "l%d_m%d_r100.00" %(l-1,m)         # "bottom" modes
-    
-    
-    
-    t_a = ar_a[:,0]
-    psi_a = ar_a[:,1]
-    impsi_a = ar_a[:,2]
-    t_b = t_a
-
-    print (a,M)
-    # print("psi_a",psi_a)
-    # print("psi_b",psi_b)
-
-
-    if m > l-1:                                     # if m is greater than the bottom mode...
-        psi_b = np.zeros(len(psi_a))                # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
-        impsi_b = np.zeros(len(impsi_a))
-        print("We're in the if statement")
-        print("psi_b:",psi_b)
-        print("impsi_b",impsi_b)
-    else:
-        ar_b = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_b)
-        psi_b = ar_b[:,1]      
-        impsi_b = ar_b[:,2]
-        print("We're in the else statement")
-        print("ar_b:",ar_b)
-    
-    print("ar_a:",ar_a)
-    
-    print("len of ar:",len(ar))
-    print("len of psi:",len(psi))
-    
-    
-    
-    
-    A = 1-(2*M/r)
-    a_1 = r
-    a_2 = ((l-1)*(l+2))/(2*r)
-    a_3 = ((l-1)*(l+2)*(l**2 + l -4))/(8*r*r)
-    B = ((0+a*2j)/((l+1)**2))*((((l+3)*(l-1)*(l+m+1)*(l-m+1))/((2*l+1)*(2*l+3)))**(1/2))
-    b_1 = r
-    b_2 = l*(l+3)
-    C = ((0+a*2j)/((l)**2))*((((l+2)*(l-2)*(l+m)*(l-m))/((2*l-1)*(2*l+1)))**(1/2))
-    c_1 = r
-    c_2 = (l-2)*(l+1)
-    
-  
-    ans = A*(a_1*psi[2:] - a_2*s_in[1:] + a_3*d_in) + B*(b_1*np.gradient(psi_a, t_a)[2:] - b_2*psi_a[2:]) - C*(c_1*np.gradient(psi_b, t_b)[2:] - c_2*psi_b[2:])
-    imans = A*(a_1*impsi[2:] - a_2*ims_in[1:] + a_3*imd_in) + B*(b_1*np.gradient(impsi_a, t_a)[2:] - b_2*impsi_a[2:]) - C*(c_1*np.gradient(impsi_b, t_b)[2:] - c_2*impsi_b[2:])
- 
-    
-    f1 = scipy.integrate.cumtrapz(ans,t[2:])
-    f1 = f1-f1[-1]
-    imf1 = scipy.integrate.cumtrapz(imans,t[2:])
-    imf1 = imf1-imf1[-1]
-    
-    f2 = scipy.integrate.cumtrapz(f1,t[3:])
-    f2 = f2-f2[-1]
-    imf2 = scipy.integrate.cumtrapz(imf1,t[3:])
-    imf2 = imf2-imf2[-1]
-    
-
-    f3_cmp = f2 + imf2*1j
-    imf3 = f3_cmp.imag
-    f3 = f3_cmp.real
-
-
-
-    complex_psi = f3 + 1j*imf3
-
-    
-    np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+sim+"_f2.dat" , np.column_stack((t[4:] , complex_psi.real , complex_psi.imag)))   
+            s_in = s_in - s_in[-1]    ## here...what are these for?? They subtract off the final component...why?
+            ims_in = ims_in - ims_in[-1]   ## here
+            
+            print("s_in_post:",s_in)
+            print(len(s_in))
+            # sys.exit()
+            
+            d_in = scipy.integrate.cumtrapz(s_in,t[1:])
+            d_in = d_in - d_in[-1]   ## here
+            imd_in = scipy.integrate.cumtrapz(ims_in,t[1:])
+            imd_in = imd_in - imd_in[-1]   ## here
+        
+            
+            mass_path = glob.glob(simdirs)
+            # A_val = np.loadtxt(main_dir+"/output-0018/J0040_N40/quasilocalmeasures-qlm_scalars..asc")    
+            A_val = np.loadtxt(mass_path[-1]+"quasilocalmeasures-qlm_scalars..asc")     ## For mass calculation
+            print("len(A_val):", len(A_val))
+            r = radius
+            # l = float(3)
+            # m = float(2)
+            M = A_val[:,58][-1]
+            a = (A_val[:,37]/A_val[:,58])[-1]
+            # ar_a = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r100.00")
+            
+            print("l:",l)
+            print("m:",m)
+               
+            modes_a = "l%d_m%d_r%.2f" %(l+1, m, radius)         # "top" modes
+            ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
+            
+            modes_b = "l%d_m%d_r%.2f" %(l-1, m, radius)         # "bottom" modes
+            
+            
+            t_a = ar_a[:,0]
+            print("len(ar_a):" , len(ar_a))
+            psi_a = ar_a[:,1]
+            impsi_a = ar_a[:,2]
+            t_b = t_a
+        
+            print (a,M)
+            # print("psi_a",psi_a)
+            # print("psi_b",psi_b)
+        
+        
+            if m > l-1:                                     # if m is greater than the bottom mode...
+                psi_b = np.zeros(len(psi_a))                # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
+                impsi_b = np.zeros(len(impsi_a))
+                print("We're in the if statement")
+                print("psi_b:",psi_b)
+                print("impsi_b",impsi_b)
+            else:
+                ar_b = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_b)
+                psi_b = ar_b[:,1]      
+                impsi_b = ar_b[:,2]
+                print("We're in the else statement")
+                print("ar_b:",ar_b)
+            
+            print("ar_a:",ar_a)
+            
+            print("len of ar:",len(ar))
+            print("len of psi:",len(psi))
+            print("psi:",psi)
+            
+            
+            
+            
+            A = 1-(2*M/r)
+            a_1 = r
+            a_2 = ((l-1)*(l+2))/(2*r)
+            a_3 = ((l-1)*(l+2)*(l**2 + l -4))/(8*r*r)
+            B = ((0+a*2j)/((l+1)**2))*((((l+3)*(l-1)*(l+m+1)*(l-m+1))/((2*l+1)*(2*l+3)))**(1/2))
+            b_1 = r
+            b_2 = l*(l+3)
+            C = ((0+a*2j)/((l)**2))*((((l+2)*(l-2)*(l+m)*(l-m))/((2*l-1)*(2*l+1)))**(1/2))
+            c_1 = r
+            c_2 = (l-2)*(l+1)
+            
+          
+            ans = A*(a_1*psi[2:] - a_2*s_in[1:] + a_3*d_in) + B*(b_1*np.gradient(psi_a, t_a)[2:] - b_2*psi_a[2:]) - C*(c_1*np.gradient(psi_b, t_b)[2:] - c_2*psi_b[2:])
+            imans = A*(a_1*impsi[2:] - a_2*ims_in[1:] + a_3*imd_in) + B*(b_1*np.gradient(impsi_a, t_a)[2:] - b_2*impsi_a[2:]) - C*(c_1*np.gradient(impsi_b, t_b)[2:] - c_2*impsi_b[2:])
+         
+            
+            f1 = scipy.integrate.cumtrapz(ans,t[2:])
+            f1 = f1-f1[-1]
+            imf1 = scipy.integrate.cumtrapz(imans,t[2:])
+            imf1 = imf1-imf1[-1]
+            
+            f2 = scipy.integrate.cumtrapz(f1,t[3:])
+            # f2 = f2-f2[-1]   ### dont do these 
+            imf2 = scipy.integrate.cumtrapz(imf1,t[3:])
+            # imf2 = imf2-imf2[-1]  ###
+            
+        
+            f3_cmp = f2 + imf2*1j
+            imf3 = f3_cmp.imag
+            f3 = f3_cmp.real
+        
+        
+        
+            complex_psi = f3 + 1j*imf3
+            
+            
+            ### Amplitude calculation?
+            
+            # Ae = (f3**2 + imf3**2)**(1/2.0)
+            # Ae_m = scipy.interpolate.spline(np.copy(t[4:]),np.copy(Ae),np.copy(t))
+            # print("Ae_m:" , len(Ae_m))
+        
+        
+            
+            np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+sim+"_f2_l%d_m%d_r%.2f.dat" %(l, m, radius) , np.column_stack((t[4:] , complex_psi.real , complex_psi.imag)))   
 
 
 #### f1 and f2 is/are our gravitational wave/Strain?
@@ -802,7 +854,7 @@ def eq_29(argv, args):
 
 # -----------------------------------------------------------------------------
         
-#Attempting argparse
+    
 
 
 def dir_path(string):
