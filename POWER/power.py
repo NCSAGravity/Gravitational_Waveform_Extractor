@@ -327,7 +327,7 @@ def POWER(argv, args):
             local_val = local_val.astype(np.complex_)
                     # TODO: rewrite as array notation using np.cumtrapz
             for i in range(0, len(t)):
-                local_val[i] = scipy.integrate.cumtrapz(prod[:i], x=(t[:i]))
+                local_val[i] = np.trapz(prod[:i], x=(t[:i]))
             val += local_val
             
         val *= 1/(16 * math.pi)
@@ -413,8 +413,6 @@ def POWER(argv, args):
         print("argv[2]:", argv[2])
         print("argv[2:]:", argv[2:])
         print("len(argv):",len(argv))
-        
-        sys.exit()
         
 
     
@@ -504,6 +502,8 @@ def POWER(argv, args):
                                 psi4dsetname = dsets[(radius, (l,m))]
                                 mp_psi4 = loadHDF5Series(simdirs+"mp_psi4.h5", psi4dsetname)
                                 mp_psi4_vars.append(mp_psi4)
+                                
+                                
                                 #------------------------------------------------
                                 # Coordinate conversion to Tortoise
                                 #------------------------------------------------
@@ -531,7 +531,13 @@ def POWER(argv, args):
                                 #-----------------------------------------------------------------
                                 # Strain Conversion
                                 #-----------------------------------------------------------------
+                                print("f0:",f0)
+                                
                                 hTable = psi4ToStrain(mp_psi4_vars[i], f0)  # table of strain
+                                
+                                print("hTable:",hTable)
+                                sys.exit()
+                                
                                 time = hTable[:, 0]
                                 h = hTable[:, 1]
                                 hplus = h.real
