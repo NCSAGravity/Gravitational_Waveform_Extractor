@@ -101,146 +101,197 @@ def loadHDF5Series(nameglob, series):
 # POWER Method
 # -----------------------------------------------------------------------------
 
-def POWER(argv, args):
   
-    #Function used in getting psi4 from simulation
 
-    print("argv:",argv)
-    print("args:",args)
     
-    #Convert radial to tortoise coordinates
-    def RadialToTortoise(r, M):
-        """
-        Convert the radial coordinate to the tortoise coordinate
+#Convert radial to tortoise coordinates
+def RadialToTortoise(r, M):
+    """
+    Convert the radial coordinate to the tortoise coordinate
+
+    r = radial coordinate
+    M = ADMMass used to convert coordinate
+    return = tortoise coordinate value
+    """
+    return r + 2. * M * math.log( r / (2. * M) - 1.)
+
+#Convert modified psi4 to strain
+def psi4ToStrain(mp_psi4, f0):
+    """
+    Convert the input mp_psi4 data to the strain of the gravitational wave
     
-        r = radial coordinate
-        M = ADMMass used to convert coordinate
-        return = tortoise coordinate value
-        """
-        return r + 2. * M * math.log( r / (2. * M) - 1.)
-    
-    #Convert modified psi4 to strain
-    def psi4ToStrain(mp_psi4, f0):
-        """
-        Convert the input mp_psi4 data to the strain of the gravitational wave
+    mp_psi4 = Weyl scalar result from simulation
+    f0 = cutoff frequency
+    return = strain (h) of the gravitational wave
+    """
+    #TODO: Check for uniform spacing in time
+    t0 = mp_psi4[:, 0]
+    list_len = len(t0)
+    complexPsi = np.zeros(list_len, dtype=np.complex_)
+    complexPsi = mp_psi4[:, 1]+1.j*mp_psi4[:, 2]
+
+    freq, psif = myFourierTransform(t0, complexPsi)
+    dhf = ffi(freq, psif, f0)
+    hf = ffi(freq, dhf, f0)
+
+    time, h = myFourierTransformInverse(freq, hf, t0[0])
+    hTable = np.column_stack((time, h))
+    return hTable
+
+#Fixed frequency integration
+# See https://arxiv.org/abs/1508.07250 for method
+def ffi(freq, data, f0):
+    """
+    Integrates the data according to the input frequency and cutoff frequency
+
+    freq = fourier transform frequency
+    data = input on which ffi is performed
+    f0 = cutoff frequency
+    """
+    f1 = f0/(2*math.pi)
+    fs = freq
+    gs = data
+    mask1 = (np.sign((fs/f1) - 1) + 1)/2.
+    mask2 = (np.sign((-fs/f1) - 1) + 1)/2.
+    mask = 1 - (1 - mask1) * (1 - mask2)
+    fs2 = mask * fs + (1-mask) * f1 * np.sign(fs - np.finfo(float).eps)
+    new_gs = gs/(2*math.pi*1.j*fs2)
+    return new_gs
+
+#Fourier Transform
+def myFourierTransform(t0, complexPsi):
+    """
+    Transforms the complexPsi data to frequency space
+
+    t0 = time data points
+    complexPsi = data points of Psi to be transformed
+    """
+    psif = np.fft.fft(complexPsi, norm="ortho")
+    l = len(complexPsi)
+    n = int(math.floor(l/2.))
+    newpsif = psif[l-n:]
+    newpsif = np.append(newpsif, psif[:l-n])
+    T = np.amin(np.diff(t0))*l
+    freq = range(-n, l-n)/T
+    return freq, newpsif
+
+#Inverse Fourier Transform
+def myFourierTransformInverse(freq, hf, t0):
+    l = len(hf)
+    n = int(math.floor(l/2.))
+    newhf = hf[n:]
+    newhf = np.append(newhf, hf[:n])
+    amp = np.fft.ifft(newhf, norm="ortho")
+    df = np.amin(np.diff(freq))
+    time = t0 + range(0, l)/(df*l)
+    return time, amp
+
+def angular_momentum(x, q, m, chi1, chi2, LInitNR):
+    eta = q/(1.+q)**2
+    m1 = (1.+math.sqrt(1.-4.*eta))/2.
+    m2 = m - m1
+    S1 = m1**2. * chi1
+    S2 = m2**2. * chi2
+    Sl = S1+S2
+    Sigmal = S2/m2 - S1/m1
+    DeltaM = m1 - m2
+    mu = eta
+    nu = eta
+    GammaE = 0.5772156649;
+    e4 = -(123671./5760.)+(9037.* math.pi**2.)/1536.+(896.*GammaE)/15.+(-(498449./3456.)+(3157.*math.pi**2.)/576.)*nu+(301. * nu**2.)/1728.+(77.*nu**3.)/31104.+(1792. *math.log(2.))/15.
+    e5 = -55.13
+    j4 = -(5./7.)*e4+64./35.
+    j5 = -(2./3.)*e5-4988./945.-656./135. * eta;
+    a1 = -2.18522;
+    a2 = 1.05185;
+    a3 = -2.43395;
+    a4 = 0.400665;
+    a5 = -5.9991;
+    CapitalDelta = (1.-4.*eta)**0.5
+
+    l = (eta/x**(1./2.)*(
+        1. +
+        x*(3./2. + 1./6.*eta) + 
+        x**2. *(27./8. - 19./8.*eta + 1./24.*eta**2.) + 
+        x**3. *(135./16. + (-6889./144. + 41./24. * math.pi**2.)*eta + 31./24.*eta**2. + 7./1296.*eta**3.) + 
+        x**4. *((2835./128.) + eta*j4 - (64.*eta*math.log(x)/3.))+ 
+        x**5. *((15309./256.) + eta*j5 + ((9976./105.) + (1312.*eta/15.))*eta*math.log(x))+
+        x**(3./2.)*(-(35./6.)*Sl - 5./2.*DeltaM* Sigmal) + 
+        x**(5./2.)*((-(77./8.) + 427./72.*eta)*Sl + DeltaM* (-(21./8.) + 35./12.*eta)*Sigmal) + 
+        x**(7./2.)*((-(405./16.) + 1101./16.*eta - 29./16.*eta**2.)*Sl + DeltaM*(-(81./16.) + 117./4.*eta - 15./16.*eta**2.)*Sigmal) + 
+        (1./2. + (m1 - m2)/2. - eta)* chi1**2. * x**2. +
+        (1./2. + (m2 - m1)/2. - eta)* chi2**2. * x**2. + 
+        2.*eta*chi1*chi2*x**2. +
+        ((13.*chi1**2.)/9. +
+        (13.*CapitalDelta*chi1**2.)/9. -
+        (55.*nu*chi1**2.)/9. - 
+        29./9.*CapitalDelta*nu*chi1**2. + 
+        (14.*nu**2. *chi1**2.)/9. +
+        (7.*nu*chi1*chi2)/3. +
+        17./18.* nu**2. * chi1 * chi2 + 
+        (13.* chi2**2.)/9. -
+        (13.*CapitalDelta*chi2**2.)/9. -
+        (55.*nu*chi2**2.)/9. +
+        29./9.*CapitalDelta*nu*chi2**2. +
+        (14.*nu**2. * chi2**2.)/9.)
+        * x**3.))
+    return l - LInitNR
+
+
+
+#Get Energy
+def get_energy(sim):
+    """
+    Save the energy radiated energy
+    sim = string of simulation
+    """
+    python_strain = np.loadtxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l2_m2.dat")
+    val = np.zeros(len(python_strain))
+    val = val.astype(np.complex_)
+    cur_max_time = python_strain[0][0]
+    cur_max_amp = abs(pow(python_strain[0][1], 2))
+    # TODO: rewrite as array operations (use np.argmax)
+    for i in python_strain[:]:
+        cur_time = i[0]
+        cur_amp = abs(pow(i[1], 2))
+        if(cur_amp>cur_max_amp):
+            cur_max_amp = cur_amp
+            cur_max_time = cur_time
+
+    max_idx = 0
+    for i in range(0, len(python_strain[:])):
+        if(python_strain[i][1] > python_strain[max_idx][1]):
+            max_idx = i
+
+    paths = glob.glob("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l[2-4]_m*.dat")
+    for path in paths:
+        python_strain = np.loadtxt(path)
+
+        t = python_strain[:, 0]
+        t = t.astype(np.complex_)
+        h = python_strain[:, 1] + 1j * python_strain[:, 2]
+        dh = np.zeros(len(t), dtype=np.complex_) 
+        for i in range(0, len(t)-1):
+            dh[i] = ((h[i+1] - h[i])/(t[i+1] - t[i]))
+        dh[len(t)-1] = dh[len(t)-2]
+
+        dh_conj = np.conj(dh)
+        prod = np.multiply(dh, dh_conj)
+        local_val = np.zeros(len(t))
+        local_val = local_val.astype(np.complex_)
+                # TODO: rewrite as array notation using np.cumtrapz
+        for i in range(0, len(t)):
+            local_val[i] = np.trapz(prod[:i], x=(t[:i]))
+        val += local_val
         
-        mp_psi4 = Weyl scalar result from simulation
-        f0 = cutoff frequency
-        return = strain (h) of the gravitational wave
-        """
-        #TODO: Check for uniform spacing in time
-        t0 = mp_psi4[:, 0]
-        list_len = len(t0)
-        complexPsi = np.zeros(list_len, dtype=np.complex_)
-        complexPsi = mp_psi4[:, 1]+1.j*mp_psi4[:, 2]
+    val *= 1/(16 * math.pi)
+    np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_energy.dat", val)
+
+
+ 
     
-        freq, psif = myFourierTransform(t0, complexPsi)
-        dhf = ffi(freq, psif, f0)
-        hf = ffi(freq, dhf, f0)
-    
-        time, h = myFourierTransformInverse(freq, hf, t0[0])
-        hTable = np.column_stack((time, h))
-        return hTable
-    
-    #Fixed frequency integration
-    # See https://arxiv.org/abs/1508.07250 for method
-    def ffi(freq, data, f0):
-        """
-        Integrates the data according to the input frequency and cutoff frequency
-    
-        freq = fourier transform frequency
-        data = input on which ffi is performed
-        f0 = cutoff frequency
-        """
-        f1 = f0/(2*math.pi)
-        fs = freq
-        gs = data
-        mask1 = (np.sign((fs/f1) - 1) + 1)/2.
-        mask2 = (np.sign((-fs/f1) - 1) + 1)/2.
-        mask = 1 - (1 - mask1) * (1 - mask2)
-        fs2 = mask * fs + (1-mask) * f1 * np.sign(fs - np.finfo(float).eps)
-        new_gs = gs/(2*math.pi*1.j*fs2)
-        return new_gs
-    
-    #Fourier Transform
-    def myFourierTransform(t0, complexPsi):
-        """
-        Transforms the complexPsi data to frequency space
-    
-        t0 = time data points
-        complexPsi = data points of Psi to be transformed
-        """
-        psif = np.fft.fft(complexPsi, norm="ortho")
-        l = len(complexPsi)
-        n = int(math.floor(l/2.))
-        newpsif = psif[l-n:]
-        newpsif = np.append(newpsif, psif[:l-n])
-        T = np.amin(np.diff(t0))*l
-        freq = range(-n, l-n)/T
-        return freq, newpsif
-    
-    #Inverse Fourier Transform
-    def myFourierTransformInverse(freq, hf, t0):
-        l = len(hf)
-        n = int(math.floor(l/2.))
-        newhf = hf[n:]
-        newhf = np.append(newhf, hf[:n])
-        amp = np.fft.ifft(newhf, norm="ortho")
-        df = np.amin(np.diff(freq))
-        time = t0 + range(0, l)/(df*l)
-        return time, amp
-    
-    def angular_momentum(x, q, m, chi1, chi2, LInitNR):
-        eta = q/(1.+q)**2
-        m1 = (1.+math.sqrt(1.-4.*eta))/2.
-        m2 = m - m1
-        S1 = m1**2. * chi1
-        S2 = m2**2. * chi2
-        Sl = S1+S2
-        Sigmal = S2/m2 - S1/m1
-        DeltaM = m1 - m2
-        mu = eta
-        nu = eta
-        GammaE = 0.5772156649;
-        e4 = -(123671./5760.)+(9037.* math.pi**2.)/1536.+(896.*GammaE)/15.+(-(498449./3456.)+(3157.*math.pi**2.)/576.)*nu+(301. * nu**2.)/1728.+(77.*nu**3.)/31104.+(1792. *math.log(2.))/15.
-        e5 = -55.13
-        j4 = -(5./7.)*e4+64./35.
-        j5 = -(2./3.)*e5-4988./945.-656./135. * eta;
-        a1 = -2.18522;
-        a2 = 1.05185;
-        a3 = -2.43395;
-        a4 = 0.400665;
-        a5 = -5.9991;
-        CapitalDelta = (1.-4.*eta)**0.5
-    
-        l = (eta/x**(1./2.)*(
-            1. +
-            x*(3./2. + 1./6.*eta) + 
-            x**2. *(27./8. - 19./8.*eta + 1./24.*eta**2.) + 
-            x**3. *(135./16. + (-6889./144. + 41./24. * math.pi**2.)*eta + 31./24.*eta**2. + 7./1296.*eta**3.) + 
-            x**4. *((2835./128.) + eta*j4 - (64.*eta*math.log(x)/3.))+ 
-            x**5. *((15309./256.) + eta*j5 + ((9976./105.) + (1312.*eta/15.))*eta*math.log(x))+
-            x**(3./2.)*(-(35./6.)*Sl - 5./2.*DeltaM* Sigmal) + 
-            x**(5./2.)*((-(77./8.) + 427./72.*eta)*Sl + DeltaM* (-(21./8.) + 35./12.*eta)*Sigmal) + 
-            x**(7./2.)*((-(405./16.) + 1101./16.*eta - 29./16.*eta**2.)*Sl + DeltaM*(-(81./16.) + 117./4.*eta - 15./16.*eta**2.)*Sigmal) + 
-            (1./2. + (m1 - m2)/2. - eta)* chi1**2. * x**2. +
-            (1./2. + (m2 - m1)/2. - eta)* chi2**2. * x**2. + 
-            2.*eta*chi1*chi2*x**2. +
-            ((13.*chi1**2.)/9. +
-            (13.*CapitalDelta*chi1**2.)/9. -
-            (55.*nu*chi1**2.)/9. - 
-            29./9.*CapitalDelta*nu*chi1**2. + 
-            (14.*nu**2. *chi1**2.)/9. +
-            (7.*nu*chi1*chi2)/3. +
-            17./18.* nu**2. * chi1 * chi2 + 
-            (13.* chi2**2.)/9. -
-            (13.*CapitalDelta*chi2**2.)/9. -
-            (55.*nu*chi2**2.)/9. +
-            29./9.*CapitalDelta*nu*chi2**2. +
-            (14.*nu**2. * chi2**2.)/9.)
-            * x**3.))
-        return l - LInitNR
-    
+def POWER(argv, args):
+
     #Get cutoff frequency
     def getCutoffFrequency(sim_name):
         """
@@ -284,55 +335,7 @@ def POWER(argv, args):
         omGWPN = 2. * omOrbPN
         omCutoff = 0.75 * omGWPN
         return omCutoff
-    
-    #Get Energy
-    def get_energy(sim):
-        """
-        Save the energy radiated energy
-        sim = string of simulation
-        """
-        python_strain = np.loadtxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l2_m2.dat")
-        val = np.zeros(len(python_strain))
-        val = val.astype(np.complex_)
-        cur_max_time = python_strain[0][0]
-        cur_max_amp = abs(pow(python_strain[0][1], 2))
-        # TODO: rewrite as array operations (use np.argmax)
-        for i in python_strain[:]:
-            cur_time = i[0]
-            cur_amp = abs(pow(i[1], 2))
-            if(cur_amp>cur_max_amp):
-                cur_max_amp = cur_amp
-                cur_max_time = cur_time
-    
-        max_idx = 0
-        for i in range(0, len(python_strain[:])):
-            if(python_strain[i][1] > python_strain[max_idx][1]):
-                max_idx = i
-    
-        paths = glob.glob("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l[2-4]_m*.dat")
-        for path in paths:
-            python_strain = np.loadtxt(path)
-    
-            t = python_strain[:, 0]
-            t = t.astype(np.complex_)
-            h = python_strain[:, 1] + 1j * python_strain[:, 2]
-            dh = np.zeros(len(t), dtype=np.complex_) 
-            for i in range(0, len(t)-1):
-                dh[i] = ((h[i+1] - h[i])/(t[i+1] - t[i]))
-            dh[len(t)-1] = dh[len(t)-2]
-    
-            dh_conj = np.conj(dh)
-            prod = np.multiply(dh, dh_conj)
-            local_val = np.zeros(len(t))
-            local_val = local_val.astype(np.complex_)
-                    # TODO: rewrite as array notation using np.cumtrapz
-            for i in range(0, len(t)):
-                local_val[i] = np.trapz(prod[:i], x=(t[:i]))
-            val += local_val
-            
-        val *= 1/(16 * math.pi)
-        np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_energy.dat", val)
-    
+
     #Get angular momentum
     def get_angular_momentum(python_strain):
         """
@@ -380,8 +383,8 @@ def POWER(argv, args):
             val += local_val
             
         val *= 1/(16 * math.pi)
-        np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_angular_momentum.dat", val)
-    
+        np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_angular_momentum.dat", val)    
+
     #-----Main-----#
     
     if __name__ == "__main__":
@@ -671,6 +674,50 @@ def POWER(argv, args):
 
         
 def eq_29(argv, args):
+    
+    #Get cutoff frequency
+    def getCutoffFrequency(sim_name):
+        """
+        Determine cutoff frequency of simulation
+    
+        sim_name = string of simulation
+        return = cutoff frequency
+        """
+        filename = main_dir+"/output-0000/%s.par" % (sim_name)
+        with open(filename) as file:
+            contents = file.readlines()
+            for line in contents:
+                line_elems = line.split(" ")
+                if(line_elems[0] == "TwoPunctures::par_b"):
+                    par_b = float(line_elems[-1])
+                if(line_elems[0] == "TwoPunctures::center_offset[0]"):
+                    center_offset = float(line_elems[-1])
+                if(line_elems[0] == "TwoPunctures::par_P_plus[1]"):
+                    pyp = float(line_elems[-1])
+                if(line_elems[0] == "TwoPunctures::par_P_minus[1]"):
+                    pym = float(line_elems[-1])
+                if(line_elems[0] == "TwoPunctures::target_M_plus"):
+                    m1 = float(line_elems[-1])
+                if(line_elems[0] == "TwoPunctures::target_M_minus"):
+                    m2 = float(line_elems[-1])
+                if(line_elems[0] == "TwoPunctures::par_S_plus[2]"):
+                    S1 = float(line_elems[-1])
+                if(line_elems[0] == "TwoPunctures::par_S_minus[2]"):
+                    S2 = float(line_elems[-1])
+    
+        xp = par_b + center_offset
+        xm = -1*par_b + center_offset
+        LInitNR = xp*pyp + xm*pym
+        M = m1+m2
+        q = m1/m2
+        chi1 = S1/m1**2
+        chi2 = S2/m2**2
+        # .014 is the initial guess for cutoff frequency
+        omOrbPN = scipy.optimize.fsolve(angular_momentum, .014, (q, M, chi1, chi2, LInitNR))[0]
+        omOrbPN = omOrbPN**(3./2.)
+        omGWPN = 2. * omOrbPN
+        omCutoff = 0.75 * omGWPN
+        return omCutoff
 
     print(len(argv))
 ### Finding the path in the command line command
@@ -824,25 +871,30 @@ def eq_29(argv, args):
             imans = A*(a_1*impsi[2:] - a_2*ims_in[1:] + a_3*imd_in) + B*(b_1*np.gradient(impsi_a, t_a)[2:] - b_2*impsi_a[2:]) - C*(c_1*np.gradient(impsi_b, t_b)[2:] - c_2*impsi_b[2:])
          
             
-            f1 = scipy.integrate.cumtrapz(ans,t[2:])
-            f1 = f1-f1[-1]
-            imf1 = scipy.integrate.cumtrapz(imans,t[2:])
-            imf1 = imf1-imf1[-1]
+            f0 = getCutoffFrequency(sim)
+            length = len(ans)
+            some_zeros = np.zeros(length, dtype = np.complex_)
+            print("len(t):",len(t))
+            print("len(some_zeros):",len(some_zeros))
+            mp_psi4 = np.column_stack((t[:-2], ans, some_zeros))
+            immp_psi4 = np.column_stack((t[:-2], imans, some_zeros))
             
-            f2 = scipy.integrate.cumtrapz(f1,t[3:])
-            # f2 = f2-f2[-1]   ### dont do these 
-            imf2 = scipy.integrate.cumtrapz(imf1,t[3:])
-            # imf2 = imf2-imf2[-1]  ###
+            f1 = psi4ToStrain(mp_psi4, f0)
+            imf1 = psi4ToStrain(immp_psi4, f0)
             
-        
-            f3_cmp = f2 + imf2*1j
+            f3_cmp = f1 + imf1*.1j
+            # f3_cmp = f2 + imf2*1j
             imf3 = f3_cmp.imag
             f3 = f3_cmp.real
         
-        
-        
+            
             complex_psi = f3 + 1j*imf3
             
+            print("HERE ----------------------------------------")
+            print(len(t[4:]))
+            print(len(complex_psi.real))
+            print(len(complex_psi.imag))
+
             
             ### Amplitude calculation?
             
@@ -852,7 +904,8 @@ def eq_29(argv, args):
         
         
             
-            np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+sim+"_f2_l%d_m%d_r%.2f.dat" %(l, m, radius) , np.column_stack((t[4:] , complex_psi.real , complex_psi.imag)))   
+            np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+sim+"_f2_l%d_m%d_r%.2f.dat" %(l, m, radius) , np.column_stack((t[4:] , complex_psi.real[:-2] , complex_psi.imag[:-2])))   
+
 
 
 #### f1 and f2 is/are our gravitational wave/Strain?
