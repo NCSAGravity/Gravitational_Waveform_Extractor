@@ -97,11 +97,6 @@ def loadHDF5Series(nameglob, series):
         return joinDsets(dsets)
 
 
-# -----------------------------------------------------------------------------
-# POWER Method
-# -----------------------------------------------------------------------------
-
-  
 
     
 #Convert radial to tortoise coordinates
@@ -288,6 +283,9 @@ def get_energy(sim):
     np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_energy.dat", val)
 
 
+# -----------------------------------------------------------------------------
+# POWER Method
+# -----------------------------------------------------------------------------
  
     
 def POWER(argv, args):
@@ -391,7 +389,6 @@ def POWER(argv, args):
         
         
         #Initialize simulation data
-
               
         if(len(argv) < 2):
                 print("Pass in the number n of the n innermost detector radii to be used in the extrapolation (optional, default=all) and the simulation folders (e.g., ./power.py 6 ./simulations/J0040_N40 /path/to/my_simulation_folder).")
@@ -400,9 +397,6 @@ def POWER(argv, args):
                 radiiUsedForExtrapolation = 7    #use the first n radii available i.e. no radii specified, defaults to 7
                 paths = argv[2:] 
                 
-        # elif(len(argv) == 4):                               # if user specifies number of radii
-        #         radiiUsedForExtrapolation = int(argv[2])
-        #         paths = argv[4:]
                 
         elif(not os.path.isdir(argv[2])):     
                 radiiUsedForExtrapolation = int(argv[2])    #use the first n radii available  
@@ -411,13 +405,6 @@ def POWER(argv, args):
                         sys.exit()
                 paths = argv[4:]      
                 
-                
-        print("Radii to be used:", radiiUsedForExtrapolation)
-        print("argv[2]:", argv[2])
-        print("argv[2:]:", argv[2:])
-        print("len(argv):",len(argv))
-        
-
     
         for sim_path in paths:
                 main_dir = sim_path
@@ -485,11 +472,10 @@ def POWER(argv, args):
                                         dsets[(radius, mode)] = dset
                         modes = sorted(modes)
                         radii = sorted(radii)
+                    
                         
                 #Get Psi4
-                print("radii:",radii)
-                print("modes:",modes)
-                
+               
                 for (l,m) in modes:                      # 25 times through the loop, from (1,1) to (4,4) 
                         #Get Tortoise Coordinate
                         mp_psi4_vars = []
@@ -534,12 +520,9 @@ def POWER(argv, args):
                                 #-----------------------------------------------------------------
                                 # Strain Conversion
                                 #-----------------------------------------------------------------
-                                print("f0:",f0)
                                 
                                 hTable = psi4ToStrain(mp_psi4_vars[i], f0)  # table of strain
                                 
-                                print("hTable:",hTable)
-                                sys.exit()
                                 
                                 time = hTable[:, 0]
                                 h = hTable[:, 1]
@@ -647,23 +630,11 @@ def POWER(argv, args):
                         np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_amplitude_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_amp)))
                         np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_phase_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_phase[:])))
                 
-                print("len(hTable)" , len(hTable))
-                print("hTable" , hTable)
-                print("len(time):" , len(time))
-                print("time:",time)
-                print("t:" , t)
-                print('len(t):', len(t))
-                print('radially_extrapolated_amp:',len(radially_extrapolated_amp))
-                print("mp_psi4_vars",mp_psi4_vars)
-                print("mp_psi4",mp_psi4)
-                print("f0:",f0)
                 
                 get_energy(sim)
                 get_angular_momentum(sim)
         
-        # print("simdirs:",simdirs)
-        # print("out_files:",out_files)
-        # print("par_files:",par_files)
+
 
 
 
@@ -674,6 +645,27 @@ def POWER(argv, args):
 
         
 def eq_29(argv, args):
+    
+    def psi4ToStrain2(mp_psi4, f0):         # WIP - will eventually replace scipy.integrate.cumtrapz
+        """
+        Convert the input mp_psi4 data to the strain of the gravitational wave
+        
+        mp_psi4 = Weyl scalar result from simulation
+        f0 = cutoff frequency
+        return = strain (h) of the gravitational wave
+        """
+        #TODO: Check for uniform spacing in time
+        t0 = mp_psi4[:, 0]
+        list_len = len(t0)
+        complexPsi = np.zeros(list_len, dtype=np.complex_)
+        complexPsi = mp_psi4[:, 1]+1.j*mp_psi4[:, 2]
+    
+        freq, psif = myFourierTransform(t0, complexPsi)
+        hf = ffi(freq, psif, f0)
+    
+        time, h = myFourierTransformInverse(freq, hf, t0[0])
+        hTable = np.column_stack((time, h))
+        return hTable
     
     #Get cutoff frequency
     def getCutoffFrequency(sim_name):
@@ -719,7 +711,6 @@ def eq_29(argv, args):
         omCutoff = 0.75 * omGWPN
         return omCutoff
 
-    print(len(argv))
 ### Finding the path in the command line command
     
     if len(argv) < 5:
@@ -728,15 +719,9 @@ def eq_29(argv, args):
     
     paths = argv[4]
     
-    print('paths:',paths)
-    
-
     main_dir = paths
-    print("main_dir:",main_dir)
     sim = os.path.split(paths)[-1]
-    print("sim:",sim)
     simdirs = main_dir+"/output-????/%s/" % (sim)
-    print("simdirs:",simdirs)
 
   
 ### Setting up directory for saving the file(s) at the end ###
@@ -756,65 +741,43 @@ def eq_29(argv, args):
     
             landm = argv[2]
             landm = landm.split(',')
-            print("landm:",landm)
             l = int(landm[0])
             m = int(landm[1])
             radius = float(i)
-            print("radius:",radius)
             if m > l:                                                           ### Fail if m > l
                 print("Error: %s is a non-physical mode" % (landm))
                 sys.exit()
             
-            print('l:',l)
-            print('m:',m)
-            
+
             modes = "l%d_m%d_r%.2f" %(l,m,radius)    
-            print("modes:", modes)
             ar = loadHDF5Series(simdirs+"mp_psi4.h5" , modes)   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
             
-            print("ar:",ar)
         
             t = ar[:,0]      # 1st column of ar, time data points
-            # print("t:" , t)
-            print("len(t):" , len(t))
             psi = ar[:,1]    # 2nd column of ar, data points for psi
-            print("len(")
             impsi = ar[:, 2]   # 3rd column of ar, data points for imaginary psi
-            # print("psi:",psi)
             
                  
             s_in = scipy.integrate.cumtrapz(psi,t)        # Integrates psi along time, i.e. psi(t) 
             ims_in = scipy.integrate.cumtrapz(impsi,t)    # Integrates impsi along time, i.e. impsi(t)
-            print("s_in_pre:",s_in)
-            print(len(s_in))
-            print(s_in[-1])
 
-            s_in = s_in - s_in[-1]    ## here...what are these for?? They subtract off the final component...why?
-            ims_in = ims_in - ims_in[-1]   ## here
-            
-            print("s_in_post:",s_in)
-            print(len(s_in))
-            # sys.exit()
+
+            s_in = s_in - s_in[-1]
+            ims_in = ims_in - ims_in[-1]
+
             
             d_in = scipy.integrate.cumtrapz(s_in,t[1:])
-            d_in = d_in - d_in[-1]   ## here
+            d_in = d_in - d_in[-1]
             imd_in = scipy.integrate.cumtrapz(ims_in,t[1:])
-            imd_in = imd_in - imd_in[-1]   ## here
+            imd_in = imd_in - imd_in[-1]
         
             
             mass_path = glob.glob(simdirs)
-            # A_val = np.loadtxt(main_dir+"/output-0018/J0040_N40/quasilocalmeasures-qlm_scalars..asc")    
             A_val = np.loadtxt(mass_path[-1]+"quasilocalmeasures-qlm_scalars..asc")     ## For mass calculation
-            print("len(A_val):", len(A_val))
             r = radius
-            # l = float(3)
-            # m = float(2)
             M = A_val[:,58][-1]
             a = (A_val[:,37]/A_val[:,58])[-1]
-            # ar_a = loadHDF5Series(simdirs+"mp_psi4.h5" , "l2_m2_r100.00")
-            
-            print("l:",l)
-            print("m:",m)
+
                
             modes_a = "l%d_m%d_r%.2f" %(l+1, m, radius)         # "top" modes
             ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
@@ -823,34 +786,23 @@ def eq_29(argv, args):
             
             
             t_a = ar_a[:,0]
-            print("len(ar_a):" , len(ar_a))
             psi_a = ar_a[:,1]
             impsi_a = ar_a[:,2]
             t_b = t_a
         
-            print (a,M)
-            # print("psi_a",psi_a)
-            # print("psi_b",psi_b)
-        
+
         
             if m > l-1:                                     # if m is greater than the bottom mode...
                 psi_b = np.zeros(len(psi_a))                # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
                 impsi_b = np.zeros(len(impsi_a))
-                print("We're in the if statement")
-                print("psi_b:",psi_b)
-                print("impsi_b",impsi_b)
+
             else:
                 ar_b = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_b)
                 psi_b = ar_b[:,1]      
                 impsi_b = ar_b[:,2]
-                print("We're in the else statement")
-                print("ar_b:",ar_b)
+
             
-            print("ar_a:",ar_a)
-            
-            print("len of ar:",len(ar))
-            print("len of psi:",len(psi))
-            print("psi:",psi)
+
             
             
             
@@ -889,26 +841,13 @@ def eq_29(argv, args):
         
             
             complex_psi = f3 + 1j*imf3
-            
-            print("HERE ----------------------------------------")
-            print(len(t[4:]))
-            print(len(complex_psi.real))
-            print(len(complex_psi.imag))
 
-            
-            ### Amplitude calculation?
-            
-            # Ae = (f3**2 + imf3**2)**(1/2.0)
-            # Ae_m = scipy.interpolate.spline(np.copy(t[4:]),np.copy(Ae),np.copy(t))
-            # print("Ae_m:" , len(Ae_m))
-        
-        
+               
             
             np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+sim+"_f2_l%d_m%d_r%.2f.dat" %(l, m, radius) , np.column_stack((t[4:] , complex_psi.real[:-2] , complex_psi.imag[:-2])))   
 
 
 
-#### f1 and f2 is/are our gravitational wave/Strain?
 
 
 # -----------------------------------------------------------------------------
@@ -935,11 +874,7 @@ if args.method == "POWER":
     POWER(sys.argv, args)
     
     
-# if args.method == "POWER":
-#         print("Extrapolating with POWER method...")
-#         POWER(sys.argv, args)
-    
-    
+
 elif args.method == "Nakano":
         print("Extrapolating with Nakano method...")
         eq_29(sys.argv, args)    
