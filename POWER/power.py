@@ -646,7 +646,7 @@ def POWER(argv, args):
         
 def eq_29(argv, args):
     
-    def psi4ToStrain2(mp_psi4, f0):         # WIP - will eventually replace scipy.integrate.cumtrapz
+    def psi4ToStrain2(mp_psi4, f0):
         """
         Convert the input mp_psi4 data to the strain of the gravitational wave
         
@@ -758,18 +758,28 @@ def eq_29(argv, args):
             impsi = ar[:, 2]   # 3rd column of ar, data points for imaginary psi
             
                  
-            s_in = scipy.integrate.cumtrapz(psi,t)        # Integrates psi along time, i.e. psi(t) 
-            ims_in = scipy.integrate.cumtrapz(impsi,t)    # Integrates impsi along time, i.e. impsi(t)
+            f0 = getCutoffFrequency(sim)
+            length_psi = len(psi)
+            some_zeros1 = np.zeros(length_psi, dtype = np.complex_)
 
+            new_psi = np.column_stack((t, psi, some_zeros1))
 
-            s_in = s_in - s_in[-1]
-            ims_in = ims_in - ims_in[-1]
+            new_impsi = np.column_stack((t, impsi, some_zeros1))
+
+            s_in = psi4ToStrain2(new_psi, f0)
+            ims_in = psi4ToStrain2(new_impsi, f0)
+            
+
+            s_in = s_in[:-2]
+            ims_in = ims_in[:-2]
+            
+
+            s_in = np.column_stack((s_in, some_zeros1[:-2]))  
+            ims_in = np.column_stack((ims_in, some_zeros1[:-2]))
 
             
-            d_in = scipy.integrate.cumtrapz(s_in,t[1:])
-            d_in = d_in - d_in[-1]
-            imd_in = scipy.integrate.cumtrapz(ims_in,t[1:])
-            imd_in = imd_in - imd_in[-1]
+            d_in = psi4ToStrain2(s_in, f0)
+            imd_in = psi4ToStrain2(ims_in, f0)
         
             
             mass_path = glob.glob(simdirs)
@@ -801,10 +811,7 @@ def eq_29(argv, args):
                 psi_b = ar_b[:,1]      
                 impsi_b = ar_b[:,2]
 
-            
 
-            
-            
             
             
             A = 1-(2*M/r)
@@ -818,16 +825,25 @@ def eq_29(argv, args):
             c_1 = r
             c_2 = (l-2)*(l+1)
             
+            
+            eenie = a_1*psi[2:]
+            meenie = a_2*s_in[1:]
+            minie = a_3*d_in
+            mo = b_1*np.gradient(psi_a, t_a)[2:]
+            catch = b_2*psi_a[2:]
+            uh = c_1*np.gradient(psi_b, t_b)[2:]
+            tiger = c_2*psi_b[2:]
+            
+            
           
-            ans = A*(a_1*psi[2:] - a_2*s_in[1:] + a_3*d_in) + B*(b_1*np.gradient(psi_a, t_a)[2:] - b_2*psi_a[2:]) - C*(c_1*np.gradient(psi_b, t_b)[2:] - c_2*psi_b[2:])
-            imans = A*(a_1*impsi[2:] - a_2*ims_in[1:] + a_3*imd_in) + B*(b_1*np.gradient(impsi_a, t_a)[2:] - b_2*impsi_a[2:]) - C*(c_1*np.gradient(impsi_b, t_b)[2:] - c_2*impsi_b[2:])
+            ans = A*(a_1*psi[2:] - a_2*s_in[:,2] + a_3*d_in[:,1]) + B*(b_1*np.gradient(psi_a, t_a)[2:] - b_2*psi_a[2:]) - C*(c_1*np.gradient(psi_b, t_b)[2:] - c_2*psi_b[2:])
+            imans = A*(a_1*impsi[2:] - a_2*ims_in[:,1] + a_3*imd_in[:,1]) + B*(b_1*np.gradient(impsi_a, t_a)[2:] - b_2*impsi_a[2:]) - C*(c_1*np.gradient(impsi_b, t_b)[2:] - c_2*impsi_b[2:])
          
             
+                        
             f0 = getCutoffFrequency(sim)
             length = len(ans)
             some_zeros = np.zeros(length, dtype = np.complex_)
-            print("len(t):",len(t))
-            print("len(some_zeros):",len(some_zeros))
             mp_psi4 = np.column_stack((t[:-2], ans, some_zeros))
             immp_psi4 = np.column_stack((t[:-2], imans, some_zeros))
             
@@ -844,10 +860,10 @@ def eq_29(argv, args):
 
                
             
-            np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+sim+"_f2_l%d_m%d_r%.2f.dat" %(l, m, radius) , np.column_stack((t[4:] , complex_psi.real[:-2] , complex_psi.imag[:-2])))   
+            np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+sim+"_f2_l%d_m%d_r%.2f_TEMP2.dat" %(l, m, radius) , np.column_stack((t[4:] , complex_psi.real[:-2] , complex_psi.imag[:-2])))   
 
 
-
+    print("Done")
 
 
 # -----------------------------------------------------------------------------
