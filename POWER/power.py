@@ -711,34 +711,147 @@ def eq_29(argv, args):
         omCutoff = 0.75 * omGWPN
         return omCutoff
 
-### Finding the path in the command line command
-    
-    if len(argv) < 5:
-        print("Error: Please specify mode...e.g. 'power.py -m 2,2 Nakano [simpath]' for the 2,2 mode")
-        sys.exit()
-    
-    paths = argv[4]
-    
-    main_dir = paths
-    sim = os.path.split(paths)[-1]
-    simdirs = main_dir+"/output-????/%s/" % (sim)
-
-  
-### Setting up directory for saving the file(s) at the end ###
-
-    main_directory = "Extrapolated_Strain(Nakano_Kerr)"
-    sim_dir = main_directory+"/"+sim
-    if not os.path.exists(main_directory):
-            os.makedirs(main_directory)
-    if not os.path.exists(sim_dir):
-            os.makedirs(sim_dir)
             
 ### ---------
             
     radii_list = [100.00 , 115.00 , 136.00 , 167.00, 214.00 , 300.00 , 500.00]
+    modes = [(0, 0), (1, 0), (1, 1), (2, -1), (2, 0), (2, 1), (2, 2), (3, -2), (3, -1), (3, 0), (3, 1), (3, 2), (3, 3)]
+
+    if len(argv) < 5:               ### For looping over all modes
+        print("Extrapolating over all modes")
+        paths = argv[2]
+        main_dir = paths
+        sim = os.path.split(paths)[-1]
+        simdirs = main_dir+"/output-????/%s/" % (sim)
+        
+    ### Setting up directory for saving the file(s) at the end ###
+        main_directory = "Extrapolated_Strain(Nakano_Kerr)"
+        sim_dir = main_directory+"/"+sim
+        if not os.path.exists(main_directory):
+            os.makedirs(main_directory)
+        if not os.path.exists(sim_dir):
+            os.makedirs(sim_dir)
+
+        for (l,m) in modes:
+            for i in radii_list:
+            
+                    landm = (l,m)
+                    l = int(landm[0])
+                    m = int(landm[1])
+                    radius = float(i)
+                    if m > l:                                                           ### Fail if m > l
+                        print("Error: %s is a non-physical mode" % (landm))
+                        sys.exit()
+                    
+        
+                    modes = "l%d_m%d_r%.2f" %(l,m,radius)    
+                    ar = loadHDF5Series(simdirs+"mp_psi4.h5" , modes)   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
+                    
+                
+                    t = ar[:,0]      # 1st column of ar, time data points
+                    psi = ar[:,1]    # 2nd column of ar, data points for psi
+                    impsi = ar[:, 2]   # 3rd column of ar, data points for imaginary psi
+                    
+                         
+                    f0 = getCutoffFrequency(sim)
+                    length_psi = len(psi)
+                    some_zeros1 = np.zeros(length_psi, dtype = np.complex_)
+        
+                    new_psi = np.column_stack((t, psi, some_zeros1))       
+                    new_impsi = np.column_stack((t, impsi, some_zeros1))
+        
+                    s_in = psi4ToStrain2(new_psi, f0)
+                    ims_in = psi4ToStrain2(new_impsi, f0)
+                    s_in = s_in[:-2]
+                    ims_in = ims_in[:-2]
+                    s_in = np.column_stack((s_in, some_zeros1[:-2]))  
+                    ims_in = np.column_stack((ims_in, some_zeros1[:-2]))
+                            
+                    d_in = psi4ToStrain2(s_in, f0)
+                    imd_in = psi4ToStrain2(ims_in, f0)
+                
+                    
+                    mass_path = glob.glob(simdirs)
+                    A_val = np.loadtxt(mass_path[-1]+"quasilocalmeasures-qlm_scalars..asc")     ## For mass calculation
+                    r = radius
+                    M = A_val[:,58][-1]
+                    a = (A_val[:,37]/A_val[:,58])[-1]
+        
+                       
+                    modes_a = "l%d_m%d_r%.2f" %(l+1, m, radius)         # "top" modes                    
+                    modes_b = "l%d_m%d_r%.2f" %(l-1, m, radius)         # "bottom" modes
+                    ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
+                    
+                    
+                    t_a = ar_a[:,0]
+                    psi_a = ar_a[:,1]
+                    impsi_a = ar_a[:,2]
+                    t_b = t_a
+                
+        
+                    if m > l-1:                                     # if m is greater than the bottom mode...
+                        psi_b = np.zeros(len(psi_a))                # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
+                        impsi_b = np.zeros(len(impsi_a))
+        
+                    else:
+                        ar_b = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_b)
+                        psi_b = ar_b[:,1]      
+                        impsi_b = ar_b[:,2]
+        
+        
+                    A = 1-(2*M/r)
+                    a_1 = r
+                    a_2 = ((l-1)*(l+2))/(2*r)
+                    a_3 = ((l-1)*(l+2)*(l**2 + l -4))/(8*r*r)
+                    B = ((0+a*2j)/((l+1)**2))*((((l+3)*(l-1)*(l+m+1)*(l-m+1))/((2*l+1)*(2*l+3)))**(1/2))
+                    b_1 = r
+                    b_2 = l*(l+3)
+                    C = ((0+a*2j)/((l)**2))*((((l+2)*(l-2)*(l+m)*(l-m))/((2*l-1)*(2*l+1)))**(1/2))
+                    c_1 = r
+                    c_2 = (l-2)*(l+1)
+                    
+                  
+                    ans = A*(a_1*psi[2:] - a_2*s_in[:,2] + a_3*d_in[:,1]) + B*(b_1*np.gradient(psi_a, t_a)[2:] - b_2*psi_a[2:]) - C*(c_1*np.gradient(psi_b, t_b)[2:] - c_2*psi_b[2:])
+                    imans = A*(a_1*impsi[2:] - a_2*ims_in[:,1] + a_3*imd_in[:,1]) + B*(b_1*np.gradient(impsi_a, t_a)[2:] - b_2*impsi_a[2:]) - C*(c_1*np.gradient(impsi_b, t_b)[2:] - c_2*impsi_b[2:])
+                 
+                    
+                    f0 = getCutoffFrequency(sim)
+                    length = len(ans)
+                    some_zeros = np.zeros(length, dtype = np.complex_)
+                    mp_psi4 = np.column_stack((t[:-2], ans, some_zeros))
+                    immp_psi4 = np.column_stack((t[:-2], imans, some_zeros))
+                    
+                    f1 = psi4ToStrain(mp_psi4, f0)
+                    imf1 = psi4ToStrain(immp_psi4, f0)
+                    
+                    f3_cmp = f1 + imf1*.1j
+                    # f3_cmp = f2 + imf2*1j
+                    imf3 = f3_cmp.imag
+                    f3 = f3_cmp.real
+                
+                    complex_psi = f3 + 1j*imf3
+        
+                       
+                    np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+sim+"_f2_l%d_m%d_r%.2f_Looped.dat" %(l, m, radius) , np.column_stack((t[4:] , complex_psi.real[:-2] , complex_psi.imag[:-2])))   
+
+
+    else:                               ### if they specify a certain mode
+        mode = argv[2]   
+        print("Extrapolating for %s mode" %mode)    
+        paths = argv[4]
+        main_dir = paths
+        sim = os.path.split(paths)[-1]
+        simdirs = main_dir+"/output-????/%s/" % (sim)
+        ### Setting up directory for saving the file(s) at the end ###
     
-    for i in radii_list:
-    
+        main_directory = "Extrapolated_Strain(Nakano_Kerr)"
+        sim_dir = main_directory+"/"+sim
+        if not os.path.exists(main_directory):
+                os.makedirs(main_directory)
+        if not os.path.exists(sim_dir):
+                os.makedirs(sim_dir)
+            
+        for i in radii_list:
             landm = argv[2]
             landm = landm.split(',')
             l = int(landm[0])
@@ -763,21 +876,15 @@ def eq_29(argv, args):
             some_zeros1 = np.zeros(length_psi, dtype = np.complex_)
 
             new_psi = np.column_stack((t, psi, some_zeros1))
-
             new_impsi = np.column_stack((t, impsi, some_zeros1))
 
             s_in = psi4ToStrain2(new_psi, f0)
             ims_in = psi4ToStrain2(new_impsi, f0)
-            
-
             s_in = s_in[:-2]
             ims_in = ims_in[:-2]
-            
-
             s_in = np.column_stack((s_in, some_zeros1[:-2]))  
             ims_in = np.column_stack((ims_in, some_zeros1[:-2]))
 
-            
             d_in = psi4ToStrain2(s_in, f0)
             imd_in = psi4ToStrain2(ims_in, f0)
         
@@ -789,19 +896,18 @@ def eq_29(argv, args):
             a = (A_val[:,37]/A_val[:,58])[-1]
 
                
-            modes_a = "l%d_m%d_r%.2f" %(l+1, m, radius)         # "top" modes
-            ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
-            
+            modes_a = "l%d_m%d_r%.2f" %(l+1, m, radius)         # "top" modes            
             modes_b = "l%d_m%d_r%.2f" %(l-1, m, radius)         # "bottom" modes
-            
-            
+
+
+            ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
+
             t_a = ar_a[:,0]
             psi_a = ar_a[:,1]
             impsi_a = ar_a[:,2]
             t_b = t_a
         
 
-        
             if m > l-1:                                     # if m is greater than the bottom mode...
                 psi_b = np.zeros(len(psi_a))                # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
                 impsi_b = np.zeros(len(impsi_a))
@@ -812,8 +918,6 @@ def eq_29(argv, args):
                 impsi_b = ar_b[:,2]
 
 
-            
-            
             A = 1-(2*M/r)
             a_1 = r
             a_2 = ((l-1)*(l+2))/(2*r)
@@ -824,21 +928,10 @@ def eq_29(argv, args):
             C = ((0+a*2j)/((l)**2))*((((l+2)*(l-2)*(l+m)*(l-m))/((2*l-1)*(2*l+1)))**(1/2))
             c_1 = r
             c_2 = (l-2)*(l+1)
-            
-            
-            eenie = a_1*psi[2:]
-            meenie = a_2*s_in[1:]
-            minie = a_3*d_in
-            mo = b_1*np.gradient(psi_a, t_a)[2:]
-            catch = b_2*psi_a[2:]
-            uh = c_1*np.gradient(psi_b, t_b)[2:]
-            tiger = c_2*psi_b[2:]
-            
-            
-          
+        
+
             ans = A*(a_1*psi[2:] - a_2*s_in[:,2] + a_3*d_in[:,1]) + B*(b_1*np.gradient(psi_a, t_a)[2:] - b_2*psi_a[2:]) - C*(c_1*np.gradient(psi_b, t_b)[2:] - c_2*psi_b[2:])
             imans = A*(a_1*impsi[2:] - a_2*ims_in[:,1] + a_3*imd_in[:,1]) + B*(b_1*np.gradient(impsi_a, t_a)[2:] - b_2*impsi_a[2:]) - C*(c_1*np.gradient(impsi_b, t_b)[2:] - c_2*impsi_b[2:])
-         
             
                         
             f0 = getCutoffFrequency(sim)
@@ -854,22 +947,17 @@ def eq_29(argv, args):
             # f3_cmp = f2 + imf2*1j
             imf3 = f3_cmp.imag
             f3 = f3_cmp.real
-        
             
             complex_psi = f3 + 1j*imf3
 
-               
             
-            np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+sim+"_f2_l%d_m%d_r%.2f_TEMP2.dat" %(l, m, radius) , np.column_stack((t[4:] , complex_psi.real[:-2] , complex_psi.imag[:-2])))   
-
-
-    print("Done")
+            np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+sim+"_f2_l%d_m%d_r%.2f_spec.dat" %(l, m, radius) , np.column_stack((t[4:] , complex_psi.real[:-2] , complex_psi.imag[:-2])))   
 
 
 # -----------------------------------------------------------------------------
         
     
-
+### argparse machinery:
 
 def dir_path(string):
     if os.path.isdir(string):
@@ -878,10 +966,10 @@ def dir_path(string):
         print("Not a directory: %s" %(string))
         # raise NotADirectoryError(string)
 
-parser = argparse.ArgumentParser(description='Choose Extrapolation method')
+parser = argparse.ArgumentParser(description='Choose extrapolation method')
 parser.add_argument("method" , choices=["POWER" , "Nakano"] , help="Extrapolation method to be used here")
 parser.add_argument('-r', "--radii" , type=int , help="For POWER method; Number of radii to be used", default=7)
-parser.add_argument('-m' , "--modes" , type=str , help="For Nakano method; modes to use, l,m")
+parser.add_argument('-m' , "--modes" , type=str , help="For Nakano method; modes to use, l,m. Leave blank to extrapolate over all available modes")
 parser.add_argument("path" , type=dir_path , help="Simulation to be used here")
 args = parser.parse_args()
 
