@@ -892,8 +892,8 @@ def eq_29(argv, args):
             mass_path = sorted(glob.glob(simdirs))
             A_val = np.loadtxt(mass_path[-1]+"quasilocalmeasures-qlm_scalars..asc")     ## For mass calculation
             r = radius
-            M = A_val[:,58][-1]
-            a = (A_val[:,37]/A_val[:,58])[-1]
+            M = A_val[-1,58]
+            a = A_val[-1,37]/A_val[-1,58]
 
                
             modes_a = "l%d_m%d_r%.2f" %(l+1, m, radius)         # "top" modes            
