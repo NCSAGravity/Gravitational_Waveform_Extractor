@@ -233,56 +233,6 @@ def angular_momentum(x, q, m, chi1, chi2, LInitNR):
     return l - LInitNR
 
 
-
-#Get Energy
-def get_energy(sim):
-    """
-    Save the energy radiated energy
-    sim = string of simulation
-    """
-    python_strain = np.loadtxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l2_m2.dat")
-    val = np.zeros(len(python_strain))
-    val = val.astype(np.complex_)
-    cur_max_time = python_strain[0][0]
-    cur_max_amp = abs(pow(python_strain[0][1], 2))
-    # TODO: rewrite as array operations (use np.argmax)
-    for i in python_strain[:]:
-        cur_time = i[0]
-        cur_amp = abs(pow(i[1], 2))
-        if(cur_amp>cur_max_amp):
-            cur_max_amp = cur_amp
-            cur_max_time = cur_time
-
-    max_idx = 0
-    for i in range(0, len(python_strain[:])):
-        if(python_strain[i][1] > python_strain[max_idx][1]):
-            max_idx = i
-
-    paths = sorted(glob.glob("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l[2-4]_m*.dat"))
-    for path in paths:
-        python_strain = np.loadtxt(path)
-
-        t = python_strain[:, 0]
-        t = t.astype(np.complex_)
-        h = python_strain[:, 1] + 1j * python_strain[:, 2]
-        dh = np.zeros(len(t), dtype=np.complex_) 
-        for i in range(0, len(t)-1):
-            dh[i] = ((h[i+1] - h[i])/(t[i+1] - t[i]))
-        dh[len(t)-1] = dh[len(t)-2]
-
-        dh_conj = np.conj(dh)
-        prod = np.multiply(dh, dh_conj)
-        local_val = np.zeros(len(t))
-        local_val = local_val.astype(np.complex_)
-                # TODO: rewrite as array notation using np.cumtrapz
-        for i in range(0, len(t)):
-            local_val[i] = np.trapz(prod[:i], x=(t[:i]))
-        val += local_val
-        
-    val *= 1/(16 * math.pi)
-    np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_energy.dat", val)
-
-
 # -----------------------------------------------------------------------------
 # POWER Method
 # -----------------------------------------------------------------------------
@@ -333,55 +283,6 @@ def POWER(argv, args):
         omGWPN = 2. * omOrbPN
         omCutoff = 0.75 * omGWPN
         return omCutoff
-
-    #Get angular momentum
-    def get_angular_momentum(python_strain):
-        """
-        Save the energy radiated angular momentum
-        sim = string of simulation
-        """
-        python_strain = np.loadtxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l2_m2.dat")
-        val = np.zeros(len(python_strain))
-        val = val.astype(np.complex_)
-        cur_max_time = python_strain[0][0]
-        cur_max_amp = abs(pow(python_strain[0][1], 2))
-        # TODO: rewrite as array operations (use np.argmax)
-        for i in python_strain[:]:
-            cur_time = i[0]
-            cur_amp = abs(pow(i[1], 2))
-            if(cur_amp>cur_max_amp):
-                cur_max_amp = cur_amp
-                cur_max_time = cur_time
-    
-        max_idx = 0
-        for i in range(0, len(python_strain[:])):
-            if(python_strain[i][1] > python_strain[max_idx][1]):
-                max_idx = i
-    
-        paths = sorted(glob.glob("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l[2-4]_m*.dat"))
-        for path in paths:
-            python_strain = np.loadtxt(path)
-    
-            t = python_strain[:, 0]
-            t = t.astype(np.complex_)
-            h = python_strain[:, 1] + 1j * python_strain[:, 2]
-            dh = np.zeros(len(t), dtype=np.complex_) 
-                    # TODO: rewrite using array notation
-            for i in range(0, len(t)-1):
-                dh[i] = ((h[i+1] - h[i])/(t[i+1] - t[i]))
-            dh[len(t)-1] = dh[len(t)-2]
-    
-            dh_conj = np.conj(dh)
-            prod = np.multiply(h, dh_conj)
-            local_val = np.zeros(len(t))
-            local_val = local_val.astype(np.complex_)
-                    # TODO: rewrite as array notation using np.cumtrapz. Move atoi call out of inner loop.
-            for i in range(0, len(t)):
-                local_val[i] = np.trapz(prod[:i], x=(t[:i])) * int(((path.split("_")[-1]).split("m")[-1]).split(".")[0])
-            val += local_val
-            
-        val *= 1/(16 * math.pi)
-        np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_angular_momentum.dat", val)    
 
     #-----Main-----#
     
@@ -629,10 +530,6 @@ def POWER(argv, args):
                         np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_h_plus, radially_extrapolated_h_cross)))
                         np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_amplitude_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_amp)))
                         np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_phase_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_phase[:])))
-                
-                
-                get_energy(sim)
-                get_angular_momentum(sim)
         
 
 
