@@ -258,7 +258,7 @@ def get_energy(sim):
         if(python_strain[i][1] > python_strain[max_idx][1]):
             max_idx = i
 
-    paths = glob.glob("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l[2-4]_m*.dat")
+    paths = sorted(glob.glob("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l[2-4]_m*.dat"))
     for path in paths:
         python_strain = np.loadtxt(path)
 
@@ -358,7 +358,7 @@ def POWER(argv, args):
             if(python_strain[i][1] > python_strain[max_idx][1]):
                 max_idx = i
     
-        paths = glob.glob("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l[2-4]_m*.dat")
+        paths = sorted(glob.glob("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l[2-4]_m*.dat"))
         for path in paths:
             python_strain = np.loadtxt(path)
     
@@ -771,7 +771,7 @@ def eq_29(argv, args):
                     imd_in = psi4ToStrain2(ims_in, f0)
                 
                     
-                    mass_path = glob.glob(simdirs)
+                    mass_path = sorted(glob.glob(simdirs))
                     A_val = np.loadtxt(mass_path[-1]+"quasilocalmeasures-qlm_scalars..asc")     ## For mass calculation
                     r = radius
                     M = A_val[:,58][-1]
@@ -889,7 +889,7 @@ def eq_29(argv, args):
             imd_in = psi4ToStrain2(ims_in, f0)
         
             
-            mass_path = glob.glob(simdirs)
+            mass_path = sorted(glob.glob(simdirs))
             A_val = np.loadtxt(mass_path[-1]+"quasilocalmeasures-qlm_scalars..asc")     ## For mass calculation
             r = radius
             M = A_val[:,58][-1]
