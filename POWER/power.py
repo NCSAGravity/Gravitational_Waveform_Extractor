@@ -377,7 +377,7 @@ def POWER(argv, args):
             local_val = local_val.astype(np.complex_)
                     # TODO: rewrite as array notation using np.cumtrapz. Move atoi call out of inner loop.
             for i in range(0, len(t)):
-                local_val[i] = scipy.integrate.cumtrapz(prod[:i], x=(t[:i])) * int(((path.split("_")[-1]).split("m")[-1]).split(".")[0])
+                local_val[i] = np.trapz(prod[:i], x=(t[:i])) * int(((path.split("_")[-1]).split("m")[-1]).split(".")[0])
             val += local_val
             
         val *= 1/(16 * math.pi)
