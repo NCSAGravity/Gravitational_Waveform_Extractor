@@ -197,13 +197,10 @@ def angular_momentum(x, q, m, chi1, chi2, LInitNR):
     e5 = -55.13
     j4 = -(5./7.)*e4+64./35.
     j5 = -(2./3.)*e5-4988./945.-656./135. * eta;
-    a1 = -2.18522;
-    a2 = 1.05185;
-    a3 = -2.43395;
-    a4 = 0.400665;
-    a5 = -5.9991;
     CapitalDelta = (1.-4.*eta)**0.5
 
+    # RH: expression was originally provided by EAH
+    # TODO: get referecen for this from EAH
     l = (eta/x**(1./2.)*(
         1. +
         x*(3./2. + 1./6.*eta) + 
