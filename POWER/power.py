@@ -368,9 +368,6 @@ def POWER(sim_path, radii, modes):
                 mode = (int(m.group(1)), int(m.group(2)))
                 dsets[(radius, mode)] = dset
 
-    # FIXME: do not hard code
-    radiiUsedForExtrapolation = 7
-    
     #Get Psi4
     
     for (l,m) in modes:                      # 25 times through the loop, from (1,1) to (4,4)
@@ -456,7 +453,7 @@ def POWER(sim_path, radii, modes):
             #Interpolate phase and amplitude
             t = phase[0][:, 0]
             # print(len(t), "length of t")
-            last_t = phase[radiiUsedForExtrapolation - 1][-1, 0]
+            last_t = phase[-1][-1, 0]
             last_index = 0;
             # TODO: use array notation for this (this is a boolean
             # plus a first_of or so)
@@ -474,7 +471,7 @@ def POWER(sim_path, radii, modes):
 
 
             interpolation_order = 9
-            for i in range(0, radiiUsedForExtrapolation):
+            for i in range(len(radii)):
                     interp_function = scipy.interpolate.interp1d(phase[i][:, 0], phase[i][:, 1], kind=interpolation_order)
                     resampled_phase_vals = interp_function(t)
                     # try and keep all initial phases within 2pi of each other
@@ -490,7 +487,6 @@ def POWER(sim_path, radii, modes):
             phase_extrapolation_order = 1
             amp_extrapolation_order = 2
             radii = np.asarray(radii, dtype=float)
-            radii = radii[0:radiiUsedForExtrapolation]
             # TODO: replace by np.ones (which is all it does anyway)
             A_phase = np.power(radii, 0)
             A_amp = np.power(radii, 0)
@@ -505,13 +501,13 @@ def POWER(sim_path, radii, modes):
             radially_extrapolated_amp = np.empty(0)
             for i in range(0, len(t)):
                     b_phase = np.empty(0)
-                    for j in range(0, radiiUsedForExtrapolation):
+                    for j in range(len(radii)):
                             b_phase = np.append(b_phase, phase[j][i, 1])
                     x_phase = np.linalg.lstsq(A_phase, b_phase)[0]
                     radially_extrapolated_phase = np.append(radially_extrapolated_phase, x_phase[0])
     
                     b_amp = np.empty(0)
-                    for j in range(0, radiiUsedForExtrapolation):
+                    for j in range(len(radii)):
                             b_amp = np.append(b_amp, amp[j][i, 1])
                     x_amp = np.linalg.lstsq(A_amp, b_amp)[0]
                     radially_extrapolated_amp = np.append(radially_extrapolated_amp, x_amp[0])
@@ -820,6 +816,8 @@ args = parser.parse_args()
 if args.method == "POWER":        
     print("Extrapolating with POWER method...")
     radii, modes = getModesInFile(args.path)
+    radii = radii[0:args.radii]
+
     POWER(args.path, radii, modes)
     
     
