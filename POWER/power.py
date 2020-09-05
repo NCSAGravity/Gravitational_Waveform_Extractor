@@ -400,15 +400,12 @@ def POWER(sim_path, radii, modes):
                     mp_psi4_vars[i][:, 2] *= radii[i]
     
                     #Check for psi4 amplitude going to zero
-                    cur_psi4_amp = np.sqrt(mp_psi4_vars[i][0, 1]**2 + mp_psi4_vars[i][0, 2]**2)
-                    min_psi4_amp = cur_psi4_amp
-                    # TODO: use array notation for this since it finds the minimum amplitude
-                    for j in range(0, len(mp_psi4_vars[i][:, 0])):
-                            cur_psi4_amp = np.sqrt(mp_psi4_vars[i][j, 1]**2 + mp_psi4_vars[i][j, 2]**2)
-                            if(cur_psi4_amp < min_psi4_amp):
-                                    min_psi4_amp = cur_psi4_amp
+                    # RH: this makes very little sense since the amplitude is
+                    # expected to be zero initially and very late
+                    psi4_amp = np.sqrt(mp_psi4_vars[i][:, 1]**2 + mp_psi4_vars[i][:, 2]**2)
+                    min_psi4_amp = np.amin(psi4_amp)
                     if(min_psi4_amp < np.finfo(float).eps and l >= 2):
-                            print("The psi4 amplitude is near zero. The phase is ill-defined.")
+                        print("The psi4 amplitude is near zero. The phase is ill-defined.")
     
                     #Fixed-frequency integration twice to get strain
                     #-----------------------------------------------------------------
