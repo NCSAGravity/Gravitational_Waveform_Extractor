@@ -51,6 +51,7 @@ import scipy.optimize
 import scipy.interpolate
 import scipy.integrate
 import argparse
+import configparser
 
 #-----Function Definitions-----#
 
@@ -229,6 +230,65 @@ def angular_momentum(x, q, m, chi1, chi2, LInitNR):
         * x**3.))
     return l - LInitNR
 
+def getCutoffFrequencyFromTwoPuncturesBBH(meta_filename):
+    """
+    Determine cutoff frequency of simulation
+
+    meta_filename = path to TwoPunctures.bbh
+    return = cutoff frequency
+    """
+
+    config = configparser.ConfigParser()
+    config.read(meta_filename)
+
+    position1x = float(config['metadata']['initial-bh-position1x'])
+    position1y = float(config['metadata']['initial-bh-position1y'])
+    position1z = float(config['metadata']['initial-bh-position1z'])
+    position2x = float(config['metadata']['initial-bh-position2x'])
+    position2y = float(config['metadata']['initial-bh-position2y'])
+    position2z = float(config['metadata']['initial-bh-position2z'])
+    momentum1x = float(config['metadata']['initial-bh-momentum1x'])
+    momentum1y = float(config['metadata']['initial-bh-momentum1y'])
+    momentum1z = float(config['metadata']['initial-bh-momentum1z'])
+    momentum2x = float(config['metadata']['initial-bh-momentum2x'])
+    momentum2y = float(config['metadata']['initial-bh-momentum2y'])
+    momentum2z = float(config['metadata']['initial-bh-momentum2z'])
+    spin1x = float(config['metadata']['initial-bh-spin1x'])
+    spin1y = float(config['metadata']['initial-bh-spin1y'])
+    spin1z = float(config['metadata']['initial-bh-spin1z'])
+    spin2x = float(config['metadata']['initial-bh-spin2x'])
+    spin2y = float(config['metadata']['initial-bh-spin2y'])
+    spin2z = float(config['metadata']['initial-bh-spin2z'])
+    mass1 = float(config['metadata']['initial-bh-puncture-adm-mass1'])
+    mass2 = float(config['metadata']['initial-bh-puncture-adm-mass2'])
+
+    angularmomentum1x = position1y * momentum1z - momentum1z * momentum1y
+    angularmomentum1y = position1z * momentum1x - momentum1x * momentum1z
+    angularmomentum1z = position1x * momentum1y - momentum1y * momentum1x
+
+    angularmomentum2x = position2y * momentum2z - momentum2z * momentum2y
+    angularmomentum2y = position2z * momentum2x - momentum2x * momentum2z
+    angularmomentum2z = position2x * momentum2y - momentum2y * momentum2x
+
+    angularmomentumx = angularmomentum1x + angularmomentum2x
+    angularmomentumy = angularmomentum1y + angularmomentum2y
+    angularmomentumz = angularmomentum1z + angularmomentum2z
+
+    LInitNR = math.sqrt(angularmomentumx**2 + angularmomentumy**2 + angularmomentumz**2)
+    S1 = math.sqrt(spin1x**2 + spin1y**2 + spin1z**2)
+    S2 = math.sqrt(spin2x**2 + spin2y**2 + spin2z**2)
+
+    M = mass1+mass2
+    q = mass1/mass2
+    chi1 = S1/mass1**2
+    chi2 = S2/mass2**2
+    # .014 is the initial guess for cutoff frequency
+    omOrbPN = scipy.optimize.fsolve(angular_momentum, .014, (q, M, chi1, chi2, LInitNR))[0]
+    omOrbPN = omOrbPN**(3./2.)
+    omGWPN = 2. * omOrbPN
+    omCutoff = 0.75 * omGWPN
+    return omCutoff
+
 
 # -----------------------------------------------------------------------------
 # POWER Method
@@ -236,50 +296,6 @@ def angular_momentum(x, q, m, chi1, chi2, LInitNR):
  
     
 def POWER(argv, args):
-
-    #Get cutoff frequency
-    def getCutoffFrequency(sim_name):
-        """
-        Determine cutoff frequency of simulation
-    
-        sim_name = string of simulation
-        return = cutoff frequency
-        """
-        filename = main_dir+"/output-0000/%s.par" % (sim_name)
-        with open(filename) as file:
-            contents = file.readlines()
-            for line in contents:
-                line_elems = line.split(" ")
-                if(line_elems[0] == "TwoPunctures::par_b"):
-                    par_b = float(line_elems[-1])
-                if(line_elems[0] == "TwoPunctures::center_offset[0]"):
-                    center_offset = float(line_elems[-1])
-                if(line_elems[0] == "TwoPunctures::par_P_plus[1]"):
-                    pyp = float(line_elems[-1])
-                if(line_elems[0] == "TwoPunctures::par_P_minus[1]"):
-                    pym = float(line_elems[-1])
-                if(line_elems[0] == "TwoPunctures::target_M_plus"):
-                    m1 = float(line_elems[-1])
-                if(line_elems[0] == "TwoPunctures::target_M_minus"):
-                    m2 = float(line_elems[-1])
-                if(line_elems[0] == "TwoPunctures::par_S_plus[2]"):
-                    S1 = float(line_elems[-1])
-                if(line_elems[0] == "TwoPunctures::par_S_minus[2]"):
-                    S2 = float(line_elems[-1])
-    
-        xp = par_b + center_offset
-        xm = -1*par_b + center_offset
-        LInitNR = xp*pyp + xm*pym
-        M = m1+m2
-        q = m1/m2
-        chi1 = S1/m1**2
-        chi2 = S2/m2**2
-        # .014 is the initial guess for cutoff frequency
-        omOrbPN = scipy.optimize.fsolve(angular_momentum, .014, (q, M, chi1, chi2, LInitNR))[0]
-        omOrbPN = omOrbPN**(3./2.)
-        omGWPN = 2. * omOrbPN
-        omCutoff = 0.75 * omGWPN
-        return omCutoff
 
     #Initialize simulation data
           
@@ -304,8 +320,7 @@ def POWER(argv, args):
             sim = os.path.split(sim_path)[-1]
     
             simdirs = main_dir+"/output-????/%s/" % (sim)
-            f0 = getCutoffFrequency(sim)
-    
+            f0 = getCutoffFrequencyFromTwoPuncturesBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
             #Get simulation total mass
             ADMMass = None
             two_punctures_files = sorted(glob.glob(main_dir+"/output-????/%s/TwoPunctures.bbh" % (sim)))
@@ -551,51 +566,6 @@ def eq_29(argv, args):
         time, h = myFourierTransformInverse(freq, hf, t0[0])
         hTable = np.column_stack((time, h))
         return hTable
-    
-    #Get cutoff frequency
-    def getCutoffFrequency(sim_name):
-        """
-        Determine cutoff frequency of simulation
-    
-        sim_name = string of simulation
-        return = cutoff frequency
-        """
-        filename = main_dir+"/output-0000/%s.par" % (sim_name)
-        with open(filename) as file:
-            contents = file.readlines()
-            for line in contents:
-                line_elems = line.split(" ")
-                if(line_elems[0] == "TwoPunctures::par_b"):
-                    par_b = float(line_elems[-1])
-                if(line_elems[0] == "TwoPunctures::center_offset[0]"):
-                    center_offset = float(line_elems[-1])
-                if(line_elems[0] == "TwoPunctures::par_P_plus[1]"):
-                    pyp = float(line_elems[-1])
-                if(line_elems[0] == "TwoPunctures::par_P_minus[1]"):
-                    pym = float(line_elems[-1])
-                if(line_elems[0] == "TwoPunctures::target_M_plus"):
-                    m1 = float(line_elems[-1])
-                if(line_elems[0] == "TwoPunctures::target_M_minus"):
-                    m2 = float(line_elems[-1])
-                if(line_elems[0] == "TwoPunctures::par_S_plus[2]"):
-                    S1 = float(line_elems[-1])
-                if(line_elems[0] == "TwoPunctures::par_S_minus[2]"):
-                    S2 = float(line_elems[-1])
-    
-        xp = par_b + center_offset
-        xm = -1*par_b + center_offset
-        LInitNR = xp*pyp + xm*pym
-        M = m1+m2
-        q = m1/m2
-        chi1 = S1/m1**2
-        chi2 = S2/m2**2
-        # .014 is the initial guess for cutoff frequency
-        omOrbPN = scipy.optimize.fsolve(angular_momentum, .014, (q, M, chi1, chi2, LInitNR))[0]
-        omOrbPN = omOrbPN**(3./2.)
-        omGWPN = 2. * omOrbPN
-        omCutoff = 0.75 * omGWPN
-        return omCutoff
-
             
 ### ---------
             
@@ -638,7 +608,7 @@ def eq_29(argv, args):
                     impsi = ar[:, 2]   # 3rd column of ar, data points for imaginary psi
                     
                          
-                    f0 = getCutoffFrequency(sim)
+                    f0 = getCutoffFrequencyFromTwoPuncturesBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
                     length_psi = len(psi)
                     some_zeros1 = np.zeros(length_psi, dtype = np.complex_)
         
@@ -700,7 +670,7 @@ def eq_29(argv, args):
                     imans = A*(a_1*impsi[2:] - a_2*ims_in[:,1] + a_3*imd_in[:,1]) + B*(b_1*np.gradient(impsi_a, t_a)[2:] - b_2*impsi_a[2:]) - C*(c_1*np.gradient(impsi_b, t_b)[2:] - c_2*impsi_b[2:])
                  
                     
-                    f0 = getCutoffFrequency(sim)
+                    f0 = getCutoffFrequencyFromTwoPuncturesBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
                     length = len(ans)
                     some_zeros = np.zeros(length, dtype = np.complex_)
                     mp_psi4 = np.column_stack((t[:-2], ans, some_zeros))
@@ -756,7 +726,7 @@ def eq_29(argv, args):
             impsi = ar[:, 2]   # 3rd column of ar, data points for imaginary psi
             
                  
-            f0 = getCutoffFrequency(sim)
+            f0 = getCutoffFrequencyFromTwoPuncturesBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
             length_psi = len(psi)
             some_zeros1 = np.zeros(length_psi, dtype = np.complex_)
 
@@ -819,7 +789,7 @@ def eq_29(argv, args):
             imans = A*(a_1*impsi[2:] - a_2*ims_in[:,1] + a_3*imd_in[:,1]) + B*(b_1*np.gradient(impsi_a, t_a)[2:] - b_2*impsi_a[2:]) - C*(c_1*np.gradient(impsi_b, t_b)[2:] - c_2*impsi_b[2:])
             
                         
-            f0 = getCutoffFrequency(sim)
+            f0 = getCutoffFrequencyFromTwoPuncturesBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
             length = len(ans)
             some_zeros = np.zeros(length, dtype = np.complex_)
             mp_psi4 = np.column_stack((t[:-2], ans, some_zeros))
