@@ -442,26 +442,18 @@ def POWER(sim_path, radii, modes):
             #----------------------------------------------------------------------
             # Extrapolation
             #----------------------------------------------------------------------
-            #Interpolate phase and amplitude
-            t = phase[0][:, 0]
-            # print(len(t), "length of t")
-            last_t = phase[-1][-1, 0]
-            last_index = 0;
-            # TODO: use array notation for this (this is a boolean
-            # plus a first_of or so)
-            for i in range(0, len(phase[0][:, 0])):
-                    if(t[i] > last_t):
-                            last_index = i
-                            break
-            last_index = last_index-1
-            t = phase[0][0:last_index, 0]    ### array gets shrunk here ... must do it for a reason
-            # print(len(t), "length of t")
-            # print("t" , t)
-            dts = t[1:] - t[:-1]
-            dt = float(np.amin(dts))
-            t = np.arange(phase[0][0, 0], phase[0][last_index, 0], dt)
 
+            # get common range in times
+            tmin = max([phase[i][ 0,0] for i in range(len(phase))])
+            tmax = min([phase[i][-1,0] for i in range(len(phase))])
 
+            # smallest timestep in any series
+            dtmin = min([np.amin(np.diff(phase[0][:,0])) for i in range(len(phase))])
+
+            # uniform, common time
+            t = np.arange(tmin, tmax, dtmin)
+
+            # Interpolate phase and amplitude
             interpolation_order = 9
             for i in range(len(radii)):
                     interp_function = scipy.interpolate.interp1d(phase[i][:, 0], phase[i][:, 1], kind=interpolation_order)
