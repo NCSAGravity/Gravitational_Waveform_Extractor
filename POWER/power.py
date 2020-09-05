@@ -371,9 +371,7 @@ def POWER(sim_path, radii, modes):
     #Get Psi4
     
     for (l,m) in modes:                      # 25 times through the loop, from (1,1) to (4,4)
-            #Get Tortoise Coordinate
             mp_psi4_vars = []
-            tortoise = []
             strain = []
             phase = []
             amp = []
@@ -387,15 +385,12 @@ def POWER(sim_path, radii, modes):
                     mp_psi4_vars.append(mp_psi4)
                     
 
-                    #------------------------------------------------
-                    # Coordinate conversion to Tortoise
-                    #------------------------------------------------
-                    tortoise.append(-RadialToTortoise(radius, ADMMass))
                     #-----------------------------------------
                     # Prepare for conversion to strain
                     #-----------------------------------------
-                    #Get modified Psi4 (Multiply real and imaginary psi4 columns by radii and add the tortoise coordinate to the time column)
-                    mp_psi4_vars[i][:, 0] += tortoise[i]
+                    # retardate time by estimated travel time to each detector,
+                    # convert from psi4 to r*psi4 to account for initial 1/r falloff
+                    mp_psi4_vars[i][:, 0] -= RadialToTortoise(radius, ADMMass)
                     mp_psi4_vars[i][:, 1] *= radii[i]
                     mp_psi4_vars[i][:, 2] *= radii[i]
     
