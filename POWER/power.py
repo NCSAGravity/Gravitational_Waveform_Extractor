@@ -495,20 +495,17 @@ def POWER(sim_path, radii, modes):
             for i in range(1, amp_extrapolation_order+1):
                 A_amp = np.column_stack((A_amp, np.power(radii, -1*i)))
     
-            radially_extrapolated_phase = np.empty_like(t)
-            radially_extrapolated_amp = np.empty_like(t)
-            for i in range(0, len(t)):
-                b_phase = np.empty_like(radii)
-                for j in range(len(radii)):
-                    b_phase[j] = phase[j][i, 1]
-                x_phase = np.linalg.lstsq(A_phase, b_phase)[0]
-                radially_extrapolated_phase[i] = x_phase[0]
+            b_phase = np.empty_like(radii, shape=(len(radii), len(t)))
+            b_amp = np.empty_like(radii, shape=(len(radii), len(t)))
+            for j in range(len(radii)):
+                b_phase[j] = phase[j][:, 1]
+                b_amp[j] = amp[j][:, 1]
+
+            x_phase = np.linalg.lstsq(A_phase, b_phase)[0]
+            radially_extrapolated_phase = x_phase[0]
     
-                b_amp = np.empty_like(radii)
-                for j in range(len(radii)):
-                    b_amp[j] = amp[j][i, 1]
-                x_amp = np.linalg.lstsq(A_amp, b_amp)[0]
-                radially_extrapolated_amp[i] = x_amp[0]
+            x_amp = np.linalg.lstsq(A_amp, b_amp)[0]
+            radially_extrapolated_amp = x_amp[0]
 
             radially_extrapolated_h_plus = radially_extrapolated_amp * np.cos(radially_extrapolated_phase)
             radially_extrapolated_h_cross = radially_extrapolated_amp * np.sin(radially_extrapolated_phase)
