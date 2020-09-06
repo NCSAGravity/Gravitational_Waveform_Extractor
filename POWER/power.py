@@ -490,32 +490,28 @@ def POWER(sim_path, radii, modes):
             A_amp = np.ones_like(radii)
 
             for i in range(1, phase_extrapolation_order+1):
-                    A_phase = np.column_stack((A_phase, np.power(radii, -1*i)))
+                A_phase = np.column_stack((A_phase, np.power(radii, -1*i)))
     
             for i in range(1, amp_extrapolation_order+1):
-                    A_amp = np.column_stack((A_amp, np.power(radii, -1*i)))
+                A_amp = np.column_stack((A_amp, np.power(radii, -1*i)))
     
-            radially_extrapolated_phase = np.empty(0)
-            radially_extrapolated_amp = np.empty(0)
+            radially_extrapolated_phase = np.empty_like(t)
+            radially_extrapolated_amp = np.empty_like(t)
             for i in range(0, len(t)):
-                    b_phase = np.empty(0)
-                    for j in range(len(radii)):
-                            b_phase = np.append(b_phase, phase[j][i, 1])
-                    x_phase = np.linalg.lstsq(A_phase, b_phase)[0]
-                    radially_extrapolated_phase = np.append(radially_extrapolated_phase, x_phase[0])
+                b_phase = np.empty_like(radii)
+                for j in range(len(radii)):
+                    b_phase[j] = phase[j][i, 1]
+                x_phase = np.linalg.lstsq(A_phase, b_phase)[0]
+                radially_extrapolated_phase[i] = x_phase[0]
     
-                    b_amp = np.empty(0)
-                    for j in range(len(radii)):
-                            b_amp = np.append(b_amp, amp[j][i, 1])
-                    x_amp = np.linalg.lstsq(A_amp, b_amp)[0]
-                    radially_extrapolated_amp = np.append(radially_extrapolated_amp, x_amp[0])
-    
-            radially_extrapolated_h_plus = np.empty(0)
-            radially_extrapolated_h_cross = np.empty(0)
-            for i in range(0, len(radially_extrapolated_amp)):
-                    radially_extrapolated_h_plus = np.append(radially_extrapolated_h_plus, radially_extrapolated_amp[i] * math.cos(radially_extrapolated_phase[i]))
-                    radially_extrapolated_h_cross = np.append(radially_extrapolated_h_cross, radially_extrapolated_amp[i] * math.sin(radially_extrapolated_phase[i]))
+                b_amp = np.empty_like(radii)
+                for j in range(len(radii)):
+                    b_amp[j] = amp[j][i, 1]
+                x_amp = np.linalg.lstsq(A_amp, b_amp)[0]
+                radially_extrapolated_amp[i] = x_amp[0]
 
+            radially_extrapolated_h_plus = radially_extrapolated_amp * np.cos(radially_extrapolated_phase)
+            radially_extrapolated_h_cross = radially_extrapolated_amp * np.sin(radially_extrapolated_phase)
 
             np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_h_plus, radially_extrapolated_h_cross)))
             np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_amplitude_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_amp)))
