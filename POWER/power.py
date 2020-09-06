@@ -456,16 +456,21 @@ def POWER(sim_path, radii, modes):
             # Interpolate phase and amplitude
             interpolation_order = 9
             for i in range(len(radii)):
-                    interp_function = scipy.interpolate.interp1d(phase[i][:, 0], phase[i][:, 1], kind=interpolation_order)
-                    resampled_phase_vals = interp_function(t)
-                    # try and keep all initial phases within 2pi of each other
-                    if(i > 0):
-                        phase_shift = round((resampled_phase_vals[0] - phase[0][0,1])/(2.*math.pi))*2.*math.pi
-                        resampled_phase_vals -= phase_shift
-                    phase[i] = np.column_stack((t, resampled_phase_vals))
                     interp_function = scipy.interpolate.interp1d(amp[i][:, 0], amp[i][:, 1], kind=interpolation_order)
                     resampled_amp_vals = interp_function(t)
                     amp[i] = np.column_stack((t, resampled_amp_vals))
+
+                    interp_function = scipy.interpolate.interp1d(phase[i][:, 0], phase[i][:, 1], kind=interpolation_order)
+                    resampled_phase_vals = interp_function(t)
+                    # try and keep all phases at the amplitude maximum within 2pi of each other
+                    # alignment is between neighbhours just in case there actually ever is
+                    # >2pi difference between the innermost and the ohtermost detector
+                    if(i > 0):
+                        maxargp = np.argmax(amp[i-1][:,1])
+                        maxarg = np.argmax(amp[i][:,1])
+                        phase_shift = round((resampled_phase_vals[maxarg] - phase[i-i][maxargp,1])/(2.*math.pi))*2.*math.pi
+                        resampled_phase_vals -= phase_shift
+                    phase[i] = np.column_stack((t, resampled_phase_vals))
 
             #Extrapolate
             phase_extrapolation_order = 1
