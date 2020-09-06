@@ -390,6 +390,10 @@ def POWER(sim_path, radii, modes):
                     #-----------------------------------------
                     # retardate time by estimated travel time to each detector,
                     # convert from psi4 to r*psi4 to account for initial 1/r falloff
+                    # RH: it might be even better (though harder to define) to
+                    # get a retardating time by looking at the time of the
+                    # maximum (found as an optimization over an interpolating
+                    # function, not argmax)
                     mp_psi4_vars[i][:, 0] -= RadialToTortoise(radius, ADMMass)
                     mp_psi4_vars[i][:, 1] *= radii[i]
                     mp_psi4_vars[i][:, 2] *= radii[i]
