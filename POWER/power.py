@@ -346,14 +346,6 @@ def POWER(sim_path, radii, modes):
     #Get simulation total mass
     ADMMass = getADMMassFromTwoPunctureBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
     
-    #Create data directories
-    main_directory = "Extrapolated_Strain"
-    sim_dir = main_directory+"/"+sim
-    if not os.path.exists(main_directory):
-            os.makedirs(main_directory)
-    if not os.path.exists(sim_dir):
-            os.makedirs(sim_dir)
-
     # get translation table from (mode, radius) to dataset name
     # TODO: this ought to be handled differently
     dsets = {}
@@ -369,7 +361,7 @@ def POWER(sim_path, radii, modes):
                 dsets[(radius, mode)] = dset
 
     #Get Psi4
-    
+    extrapolated_strains = []
     for (l,m) in modes:                      # 25 times through the loop, from (1,1) to (4,4)
             mp_psi4_vars = []
             strain = []
@@ -421,7 +413,6 @@ def POWER(sim_path, radii, modes):
                     newhTable = np.column_stack((time, hplus, hcross))
                     warnings.filterwarnings('ignore')
                     finalhTable = newhTable.astype(float)
-                    np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_strain_at_"+str(radii[i])+"_l"+str(l)+"_m"+str(m)+".dat", finalhTable)
                     strain.append(finalhTable)
                     
                     
@@ -510,9 +501,8 @@ def POWER(sim_path, radii, modes):
             radially_extrapolated_h_plus = radially_extrapolated_amp * np.cos(radially_extrapolated_phase)
             radially_extrapolated_h_cross = radially_extrapolated_amp * np.sin(radially_extrapolated_phase)
 
-            np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_h_plus, radially_extrapolated_h_cross)))
-            np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_amplitude_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_amp)))
-            np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_phase_l"+str(l)+"_m"+str(m)+".dat", np.column_stack((t, radially_extrapolated_phase[:])))
+            extrapolated_strains.append(np.column_stack((t, radially_extrapolated_h_plus, radially_extrapolated_h_cross)))
+    return extrapolated_strains
         
 
 # -----------------------------------------------------------------------------
@@ -806,10 +796,24 @@ args = parser.parse_args()
 
 if args.method == "POWER":        
     print("Extrapolating with POWER method...")
-    radii, modes = getModesInFile(args.path)
-    radii = radii[0:args.radii]
+    all_radii, all_modes = getModesInFile(args.path)
+    radii = all_radii[0:args.radii]
+    modes = all_modes
 
-    POWER(args.path, radii, modes)
+    strains = POWER(args.path, radii, modes)
+
+    #Create data directories
+    sim = os.path.split(args.path)[-1]
+    main_directory = "Extrapolated_Strain"
+    sim_dir = main_directory + "/" + sim
+    if not os.path.exists(main_directory):
+            os.makedirs(main_directory)
+    if not os.path.exists(sim_dir):
+            os.makedirs(sim_dir)
+
+    for i, (l,m) in enumerate(modes):
+        np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l"+str(l)+"_m"+str(m)+".dat", strains[i])
+
     
     
 
