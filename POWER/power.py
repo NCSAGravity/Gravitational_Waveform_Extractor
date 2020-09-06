@@ -466,9 +466,15 @@ def POWER(sim_path, radii, modes):
                     # alignment is between neighbhours just in case there actually ever is
                     # >2pi difference between the innermost and the ohtermost detector
                     if(i > 0):
-                        maxargp = np.argmax(amp[i-1][:,1])
-                        maxarg = np.argmax(amp[i][:,1])
-                        phase_shift = round((resampled_phase_vals[maxarg] - phase[i-i][maxargp,1])/(2.*math.pi))*2.*math.pi
+                        # for some modes (post 2,2) the initial junk can be the
+                        # largest amplitude contribution, so w try to skip it
+                        # when looking for maxima
+                        junk_time = 50.
+                        post_junk_idx_p = amp[i-1][:,0] > junk_time
+                        post_junk_idx = amp[i-1][:,0] > junk_time
+                        maxargp = np.argmax(amp[i-1][post_junk_idx_p,1])
+                        maxarg = np.argmax(amp[i][post_junk_idx,1])
+                        phase_shift = round((resampled_phase_vals[post_junk_idx][maxarg] - phase[i-1][post_junk_idx_p][maxargp,1])/(2.*math.pi))*2.*math.pi
                         resampled_phase_vals -= phase_shift
                     phase[i] = np.column_stack((t, resampled_phase_vals))
 
