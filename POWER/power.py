@@ -486,15 +486,14 @@ def POWER(sim_path, radii, modes):
             phase_extrapolation_order = 1
             amp_extrapolation_order = 2
             radii = np.asarray(radii, dtype=float)
-            # TODO: replace by np.ones (which is all it does anyway)
-            A_phase = np.power(radii, 0)
-            A_amp = np.power(radii, 0)
+            A_phase = np.ones_like(radii)
+            A_amp = np.ones_like(radii)
 
             for i in range(1, phase_extrapolation_order+1):
-                    A_phase = np.column_stack((A_phase, np.power(radii, -1*i*math.pi)))
+                    A_phase = np.column_stack((A_phase, np.power(radii, -1*i)))
     
             for i in range(1, amp_extrapolation_order+1):
-                    A_amp = np.column_stack((A_amp, np.power(radii, -1*i*math.pi)))
+                    A_amp = np.column_stack((A_amp, np.power(radii, -1*i)))
     
             radially_extrapolated_phase = np.empty(0)
             radially_extrapolated_amp = np.empty(0)
