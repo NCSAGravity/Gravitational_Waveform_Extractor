@@ -381,7 +381,7 @@ def POWER(sim_path, radii, modes):
                 dsets[(radius, mode)] = dset
 
     #Get Psi4
-    extrapolated_strains = []
+    extrapolated_strains = {None: {}}
     for (el,em) in modes:                      # 25 times through the loop, from (1,1) to (4,4)
         mp_psi4_vars = []
         strain = []
@@ -516,7 +516,7 @@ def POWER(sim_path, radii, modes):
         radially_extrapolated_h_plus = radially_extrapolated_amp * np.cos(radially_extrapolated_phase)
         radially_extrapolated_h_cross = radially_extrapolated_amp * np.sin(radially_extrapolated_phase)
 
-        extrapolated_strains.append(np.column_stack((t, radially_extrapolated_h_plus, radially_extrapolated_h_cross)))
+        extrapolated_strains[None][el,em] = np.column_stack((t, radially_extrapolated_h_plus, radially_extrapolated_h_cross))
     return extrapolated_strains
 
 
@@ -547,9 +547,10 @@ def eq_29(sim_path, radii_list, modes):
     a, M = getFinalSpinFromQLM(sim_path)
     f0 = getCutoffFrequencyFromTwoPuncturesBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
 
-    extrapolated_strains = []
-    for (el,em) in modes:
-        for radius in radii_list:
+    extrapolated_strains = {}
+    for radius in radii_list:
+        extrapolated_strains[radius] = {}
+        for (el,em) in modes:
             ar = loadHDF5Series(simdirs+"mp_psi4.h5" , dsets[(radius, (el,em))])   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
 
             psi = np.column_stack((ar[:,0], ar[:,1] + 1j * ar[:,2]))
@@ -609,9 +610,9 @@ def eq_29(sim_path, radii_list, modes):
 
             extrapolated_strain = psi4ToStrain(extrapolated_psi, f0)
 
-            extrapolated_strains.append(np.column_stack(
+            extrapolated_strains[radius][(el,em)] = np.column_stack(
               (extrapolated_strain[:,0].real, extrapolated_strain[:,1].real,
-               extrapolated_strain[:,1].imag)))
+               extrapolated_strain[:,1].imag))
     return extrapolated_strains
 
 
@@ -625,55 +626,50 @@ if __name__ == "__main__":
         if os.path.isdir(string):
             return string
         else:
-            print("Not a directory: %s" %(string))
-            # raise NotADirectoryError(string)
+            # Python version issue: Python2 does not have NotADirectoryError
+            raise ValueError("Not a directory: %s" %(string))
 
     parser = argparse.ArgumentParser(description='Choose extrapolation method')
     parser.add_argument("method" , choices=["POWER" , "Nakano"] , help="Extrapolation method to be used here")
-    parser.add_argument('-r', "--radii" , type=int , help="For POWER method; Number of radii to be used", default=7)
-    parser.add_argument('-m' , "--modes" , type=str , help="For Nakano method; modes to use, l,m. Leave blank to extrapolate over all available modes")
+    parser.add_argument('-r', "--radii" , type=int , help="Number of radii to be used, set to -1 to use all.", default=7)
+    parser.add_argument('-m', "--modes" , type=str , help="Modes to use, [(l1,m1),(l2,m2),...]. Leave blank to extrapolate over all available modes")
+    parser.add_argument('-d', "--output-directory", type=str, help="Directory to write extrapolated waveforms to.", default=os.path.join("Extrapolated_Strain", "{sim_name}"))
+    parser.add_argument('-o', "--output-file", type=str, help="File to write extrapolated waveforms to.", default=None)
     parser.add_argument("path" , type=dir_path , help="Simulation to be used here")
     args = parser.parse_args()
 
-    if args.method == "POWER":
-        print("Extrapolating with POWER method...")
-        all_radii, all_modes = getModesInFile(args.path)
-        radii = all_radii[0:args.radii]
+    all_radii, all_modes = getModesInFile(args.path)
+    radii = all_radii[0:(args.radii if args.radii != -1 else None)]
+    if args.modes:
+        modes = eval(args.modes)
+    else:
         modes = all_modes
 
+    sim_name = os.path.split(args.path)[-1]
+    output_directory = args.output_directory.format(sim_name = sim_name)
+
+    if args.method == "POWER":
+        print("Extrapolating with POWER method...")
         strains = POWER(args.path, radii, modes)
-
-        #Create data directories
-        sim = os.path.split(args.path)[-1]
-        main_directory = "Extrapolated_Strain"
-        sim_dir = main_directory + "/" + sim
-        if not os.path.exists(main_directory):
-            os.makedirs(main_directory)
-        if not os.path.exists(sim_dir):
-            os.makedirs(sim_dir)
-
-        for i, (el,em) in enumerate(modes):
-            np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l"+str(el)+"_m"+str(em)+".dat", strains[i])
 
     elif args.method == "Nakano":
         print("Extrapolating with Nakano method...")
-        all_radii, all_modes = getModesInFile(args.path)
-        radii = all_radii[0:args.radii]
-        modes = [(0, 0), (1, 0), (1, 1), (2, -1), (2, 0), (2, 1), (2, 2), (3, -2), (3, -1), (3, 0), (3, 1), (3, 2), (3, 3)]
-
         strains = eq_29(args.path, radii, modes)
 
-        #Create data directories
-        sim = os.path.split(args.path)[-1]
-        main_directory = "Extrapolated_Strain(Nakano_Kerr)"
-        sim_dir = main_directory + "/" + sim
-        if not os.path.exists(main_directory):
-            os.makedirs(main_directory)
-        if not os.path.exists(sim_dir):
-            os.makedirs(sim_dir)
+    #Create data directories
+    # Python version issue: Python2 uses OSError for existing directories,
+    # Python3 uses FileExistsError
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
 
-        strain = iter(strains)
-        for (el,em) in modes:
-            for r in radii:
-                fn = "%s_f2_l%d_m%d_r%.2f_Looped.dat" % (sim, el, em, r)
-                np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+fn, next(strain))
+    for radius in strains:
+        for (el,em) in strains[radius]:
+            if args.output_file is not None:
+                fn = args.output_file.format(l="%d" % el, m="%d" % em, sim_name="%s" % sim_name, radius="%.2f" % radius)
+            else:
+                if radius is not None:
+                    fn = "%s_extrapolated_strain_l%d_m%d_r%.2f.dat" % (sim_name, el, em, radius)
+                else:
+                    fn = "%s_extrapolated_strain_l%d_m%d.dat" % (sim_name, el, em)
+            path = os.path.join(output_directory, fn)
+            np.savetxt(path, strains[radius][(el,em)])
