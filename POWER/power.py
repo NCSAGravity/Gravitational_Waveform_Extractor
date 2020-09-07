@@ -583,8 +583,8 @@ def eq_29(sim_path, radii_list, modes):
                     psi_a = np.column_stack((ar_a[:,0], ar_a[:,1] + 1j * ar_a[:,2]))
                     dt_psi_a = np.column_stack((psi_a[:,0], np.gradient(psi_a[:,1], psi_a[:,0])))
                     B = 2.j*a/(l+1.)**2*np.sqrt((l+3.)*(l-1)*(l+m+1.)*(l-m+1.)/((2.*l+1.)*(2.*l+3.)))
-                    b_1 = radius
-                    b_2 = l*(l+3.)
+                    b_1 = 1.
+                    b_2 = l*(l+3.)/radius
                 else:
                     psi_a = np.zeros_like(psi)             # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
                     dt_psi_a = np.zeros_like(psi)          # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
@@ -604,15 +604,15 @@ def eq_29(sim_path, radii_list, modes):
                     psi_b = np.column_stack((ar_b[:,0], ar_b[:,1] + 1j * ar_b[:,2]))
                     dt_psi_b = np.column_stack((psi_b[:,0], np.gradient(psi_b[:,1], psi_b[:,0])))
                     C = 2.j*a/l**2*np.sqrt((l+2.)*(l-2.)*(l+m)*(l-m)/((2.*l-1.)*(2.*l+1.)))
-                    c_1 = radius
-                    c_2 = (l-2.)*(l+1.)
+                    c_1 = 1.
+                    c_2 = (l-2.)*(l+1.)/radius
 
                 A = 1.-(2.*M/radius)
                 a_1 = radius
                 a_2 = (l-1.)*(l+2.)/(2.*radius)
                 a_3 = (l-1.)*(l+2.)*(l**2 + l - 4.)/(8*radius*radius)
 
-                extrapolated_psi_data = A*(a_1*psi[:,1] - a_2*news[:,1] + a_3*strain[:,1]) + B*(b_1*dt_psi_a[:,1] - b_2*psi_a[:,1]) - C*(c_1*dt_psi_b[:,1] - c_2*psi_b[:,1])
+                extrapolated_psi_data = A*(a_1*psi[:,1] - a_2*radius*news[:,1] + a_3*radius*strain[:,1]) + B*(b_1*radius*dt_psi_a[:,1] - b_2*radius*psi_a[:,1]) - C*(c_1*radius*dt_psi_b[:,1] - c_2*radius*psi_b[:,1])
 
                 extrapolated_psi = np.column_stack((psi[:,0], extrapolated_psi_data.real, extrapolated_psi_data.imag))
 
