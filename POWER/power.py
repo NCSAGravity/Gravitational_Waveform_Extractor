@@ -576,7 +576,15 @@ def eq_29(sim_path, radii_list, modes):
                 news = psi4ToStrain2(psi, f0)
                 strain = psi4ToStrain2(news, f0)
             
-                if (radius, (l+1,m)) in dsets:
+                # TODO: check if expressions are applicable for l < 2 at all or
+                # of Nakano's derivation requires l>=2 to begin with
+                if l < 1 or (radius, (l+1,m)) not in dsets:
+                    psi_a = np.zeros_like(psi)             # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
+                    dt_psi_a = np.zeros_like(psi)          # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
+                    B = 0.
+                    b_1 = 0.
+                    b_2 = 0.
+                else:
                     # TODO: throw an error when a physical mode is not present in the file?
                     modes_a = dsets[(radius, (l+1,m))]         # "top" modes
                     ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
@@ -585,14 +593,8 @@ def eq_29(sim_path, radii_list, modes):
                     B = 2.j*a/(l+1.)**2*np.sqrt((l+3.)*(l-1)*(l+m+1.)*(l-m+1.)/((2.*l+1.)*(2.*l+3.)))
                     b_1 = 1.
                     b_2 = l*(l+3.)/radius
-                else:
-                    psi_a = np.zeros_like(psi)             # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
-                    dt_psi_a = np.zeros_like(psi)          # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
-                    B = 0.
-                    b_1 = 0.
-                    b_2 = 0.
 
-                if m > l-1:                                # if m is greater than the bottom mode...
+                if m > l-1 or l < 2:                       # if m is greater than the bottom mode...
                     psi_b = np.zeros_like(psi)             # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
                     dt_psi_b = np.zeros_like(psi)          # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
                     C = 0.
@@ -609,8 +611,13 @@ def eq_29(sim_path, radii_list, modes):
 
                 A = 1.-(2.*M/radius)
                 a_1 = radius
-                a_2 = (l-1.)*(l+2.)/(2.*radius)
-                a_3 = (l-1.)*(l+2.)*(l**2 + l - 4.)/(8*radius*radius)
+                if l < 1:
+                    a_2 = 0.
+                    a_3 = 0.
+                else:
+                    a_2 = (l-1.)*(l+2.)/(2.*radius)
+                    # Note: third term is negative for l==1
+                    a_3 = (l-1.)*(l+2.)*(l**2 + l - 4.)/(8*radius*radius)
 
                 extrapolated_psi_data = A*(a_1*psi[:,1] - a_2*radius*news[:,1] + a_3*radius*strain[:,1]) + B*(b_1*radius*dt_psi_a[:,1] - b_2*radius*psi_a[:,1]) - C*(c_1*radius*dt_psi_b[:,1] - c_2*radius*psi_b[:,1])
 
