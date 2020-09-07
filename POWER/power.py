@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2017 The Board of Trustees of the University of Illinois
+# Copyright (c) 2017 - 2020 The Board of Trustees of the University of Illinois
 # All rights reserved.
 #
-# Developed by: Daniel Johnson, E. A. Huerta, Roland Haas
+# Developed by: Daniel Johnson, E. A. Huerta, Roland Haas, Debopam Sanyal,
+#               Brockton Brendal
 #               NCSA Gravity Group
 #               National Center for Supercomputing Applications
 #               University of Illinois at Urbana-Champaign
