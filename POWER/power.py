@@ -588,7 +588,7 @@ def eq_29(sim_path, radii_list, modes):
                 b_1 = 1.
                 b_2 = el*(el+3.)/radius
 
-            if em > el-1 or el < 2:                       # if em is greater than the bottom mode...
+            if abs(em) > el-1 or el < 2:               # if em is greater than the bottom mode...
                 psi_b = np.zeros_like(psi)             # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
                 dt_psi_b = np.zeros_like(psi)          # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
                 C = 0.
