@@ -390,7 +390,7 @@ def POWER(sim_path, radii, modes):
 
     #Get Psi4
     extrapolated_strains = []
-    for (l,m) in modes:                      # 25 times through the loop, from (1,1) to (4,4)
+    for (el,em) in modes:                      # 25 times through the loop, from (1,1) to (4,4)
             mp_psi4_vars = []
             strain = []
             phase = []
@@ -400,7 +400,7 @@ def POWER(sim_path, radii, modes):
                     # Read in HDF5 data
                     #------------------------------------------------
                     radius = radii[i]
-                    psi4dsetname = dsets[(radius, (l,m))]
+                    psi4dsetname = dsets[(radius, (el,em))]
                     mp_psi4 = loadHDF5Series(simdirs+"mp_psi4.h5", psi4dsetname)
                     mp_psi4_vars.append(mp_psi4)
                     
@@ -423,7 +423,7 @@ def POWER(sim_path, radii, modes):
                     # expected to be zero initially and very late
                     psi4_amp = np.sqrt(mp_psi4_vars[i][:, 1]**2 + mp_psi4_vars[i][:, 2]**2)
                     min_psi4_amp = np.amin(psi4_amp)
-                    if(min_psi4_amp < np.finfo(float).eps and l >= 2):
+                    if(min_psi4_amp < np.finfo(float).eps and el >= 2):
                         print("The psi4 amplitude is near zero. The phase is ill-defined.")
     
                     #Fixed-frequency integration twice to get strain
@@ -562,10 +562,10 @@ def eq_29(sim_path, radii_list, modes):
     f0 = getCutoffFrequencyFromTwoPuncturesBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
 
     extrapolated_strains = []
-    for (l,m) in modes:
+    for (el,em) in modes:
         for radius in radii_list:
         
-                ar = loadHDF5Series(simdirs+"mp_psi4.h5" , dsets[(radius, (l,m))])   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
+                ar = loadHDF5Series(simdirs+"mp_psi4.h5" , dsets[(radius, (el,em))])   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
                 
                 psi = np.column_stack((ar[:,0], ar[:,1] + 1j * ar[:,2]))
                 # 1st column of ar, time data points
@@ -575,9 +575,19 @@ def eq_29(sim_path, radii_list, modes):
                 news = FFIIntegrate(psi, f0)
                 strain = FFIIntegrate(news, f0)
             
-                # TODO: check if expressions are applicable for l < 2 at all or
-                # of Nakano's derivation requires l>=2 to begin with
-                if l < 1 or (radius, (l+1,m)) not in dsets:
+                # TODO: check if expressions are applicable for el < 2 at all or
+                # of Nakano's derivation requires el>=2 to begin with
+                A = 1.-(2.*M/radius)
+                a_1 = radius
+                if el < 1:
+                    a_2 = 0.
+                    a_3 = 0.
+                else:
+                    a_2 = (el-1.)*(el+2.)/(2.*radius)
+                    # Note: third term is negative for el==1
+                    a_3 = (el-1.)*(el+2.)*(el**2 + el - 4.)/(8*radius*radius)
+
+                if el < 1 or (radius, (el+1,em)) not in dsets:
                     psi_a = np.zeros_like(psi)             # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
                     dt_psi_a = np.zeros_like(psi)          # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
                     B = 0.
@@ -585,38 +595,28 @@ def eq_29(sim_path, radii_list, modes):
                     b_2 = 0.
                 else:
                     # TODO: throw an error when a physical mode is not present in the file?
-                    modes_a = dsets[(radius, (l+1,m))]         # "top" modes
+                    modes_a = dsets[(radius, (el+1,em))]         # "top" modes
                     ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
                     psi_a = np.column_stack((ar_a[:,0], ar_a[:,1] + 1j * ar_a[:,2]))
                     dt_psi_a = np.column_stack((psi_a[:,0], np.gradient(psi_a[:,1], psi_a[:,0])))
-                    B = 2.j*a/(l+1.)**2*np.sqrt((l+3.)*(l-1)*(l+m+1.)*(l-m+1.)/((2.*l+1.)*(2.*l+3.)))
+                    B = 2.j*a/(el+1.)**2*np.sqrt((el+3.)*(el-1)*(el+em+1.)*(el-em+1.)/((2.*el+1.)*(2.*el+3.)))
                     b_1 = 1.
-                    b_2 = l*(l+3.)/radius
+                    b_2 = el*(el+3.)/radius
 
-                if m > l-1 or l < 2:                       # if m is greater than the bottom mode...
+                if em > el-1 or el < 2:                       # if em is greater than the bottom mode...
                     psi_b = np.zeros_like(psi)             # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
                     dt_psi_b = np.zeros_like(psi)          # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
                     C = 0.
                     c_1 = 0.
                     c_2 = 0.
                 else:
-                    modes_b = dsets[(radius, (l-1, m))]    # "bottom" modes
+                    modes_b = dsets[(radius, (el-1, em))]    # "bottom" modes
                     ar_b = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_b)
                     psi_b = np.column_stack((ar_b[:,0], ar_b[:,1] + 1j * ar_b[:,2]))
                     dt_psi_b = np.column_stack((psi_b[:,0], np.gradient(psi_b[:,1], psi_b[:,0])))
-                    C = 2.j*a/l**2*np.sqrt((l+2.)*(l-2.)*(l+m)*(l-m)/((2.*l-1.)*(2.*l+1.)))
+                    C = 2.j*a/el**2*np.sqrt((el+2.)*(el-2.)*(el+em)*(el-em)/((2.*el-1.)*(2.*el+1.)))
                     c_1 = 1.
-                    c_2 = (l-2.)*(l+1.)/radius
-
-                A = 1.-(2.*M/radius)
-                a_1 = radius
-                if l < 1:
-                    a_2 = 0.
-                    a_3 = 0.
-                else:
-                    a_2 = (l-1.)*(l+2.)/(2.*radius)
-                    # Note: third term is negative for l==1
-                    a_3 = (l-1.)*(l+2.)*(l**2 + l - 4.)/(8*radius*radius)
+                    c_2 = (el-2.)*(el+1.)/radius
 
                 extrapolated_psi_data = A*(a_1*psi[:,1] - a_2*radius*news[:,1] + a_3*radius*strain[:,1]) + B*(b_1*radius*dt_psi_a[:,1] - b_2*radius*psi_a[:,1]) - C*(c_1*radius*dt_psi_b[:,1] - c_2*radius*psi_b[:,1])
 
@@ -666,8 +666,8 @@ if args.method == "POWER":
     if not os.path.exists(sim_dir):
             os.makedirs(sim_dir)
 
-    for i, (l,m) in enumerate(modes):
-        np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l"+str(l)+"_m"+str(m)+".dat", strains[i])
+    for i, (el,em) in enumerate(modes):
+        np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l"+str(el)+"_m"+str(em)+".dat", strains[i])
 
     
     
@@ -690,7 +690,7 @@ elif args.method == "Nakano":
             os.makedirs(sim_dir)
 
     strain = iter(strains)
-    for (l,m) in modes:
+    for (el,em) in modes:
         for r in radii:
-            fn = "%s_f2_l%d_m%d_r%.2f_Looped.dat" % (sim, l, m, r)
+            fn = "%s_f2_l%d_m%d_r%.2f_Looped.dat" % (sim, el, em, r)
             np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+fn, next(strain))
