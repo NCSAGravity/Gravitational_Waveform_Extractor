@@ -619,7 +619,7 @@ def eq_29(sim_path, radii_list, modes):
                 extrapolated_strain = psi4ToStrain(extrapolated_psi, f0)
 
                 extrapolated_strains.append(np.column_stack(
-                  (ar[:,0], extrapolated_strain[:,1].real,
+                  (extrapolated_strain[:,0].real, extrapolated_strain[:,1].real,
                    extrapolated_strain[:,1].imag)))
     return extrapolated_strains
 
