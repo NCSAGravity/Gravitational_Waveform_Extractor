@@ -336,7 +336,7 @@ def getModesInFile(sim_path):
     return = radii, modes
     """
 
-    fn = sorted(glob.glob(sim_path+"/output-????/*/mp_[Pp]si4.h5"))[0]
+    fn = sorted(glob.glob(os.path.join(sim_path,"output-????", "*", "mp_[Pp]si4.h5"))[0]
     with h5py.File(fn, "r") as fh:
         radii = set()
         modes = set()
@@ -358,18 +358,40 @@ def getModesInFile(sim_path):
 # -----------------------------------------------------------------------------
 
 def POWER(sim_path, radii, modes):
+    """ Compute gravitational waveform at null infinity using a simple
+    extrapolation in 1/r based on the expected fallof in amplitude and phase of
+    the strain.
+
+    sim_path is assumed to point to a Simfactory-like directory structure,
+    ie. contain directories output-???? then one more subdirectory then the
+    actual data files mp_[Pp]si4.h5 written by the Multipole thorn.
+
+    radii_list is list of floating point detector radii to use in the
+    extrapolation.
+
+    modes is a Python list of tuples (el,em) for all the modes that should be
+    computed.
+
+    modes requested but not found in the data file are silently assumed to be
+    zero.
+
+    Returns a dobule dictionary of column numpy arrays of strains where the
+    first level is indexed only by None then by the (el,em) mode, ie.
+    strains[None][(el,em)] is a numpy array.
+    """
     main_dir = sim_path
     sim = os.path.split(sim_path)[-1]
 
-    simdirs = main_dir+"/output-????/%s/" % (sim)
-    f0 = getCutoffFrequencyFromTwoPuncturesBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
+    simdirs = os.path.join(main_dir, "output-????", sim)
+    meta_name = glob.glob(os.path.join(main_dir, "output-0000", "*", "TwoPunctures.bbh")[0]
+    f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
     #Get simulation total mass
-    ADMMass = getADMMassFromTwoPunctureBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
+    ADMMass = getADMMassFromTwoPunctureBBH(meta_name)
 
     # get translation table from (mode, radius) to dataset name
     # TODO: this ought to be handled differently
     dsets = {}
-    fn = sorted(glob.glob(sim_path+"/output-????/*/mp_[Pp]si4.h5"))[0]
+    fn = sorted(glob.glob(os.path.join(sim_path, "output-????", "*", "mp_[Pp]si4.h5"))[0]
     with h5py.File(fn, "r") as fh:
         for dset in fh:
             # TODO: extend Multipole to save the radii as attributes and/or
@@ -380,7 +402,9 @@ def POWER(sim_path, radii, modes):
                 mode = (int(m.group(1)), int(m.group(2)))
                 dsets[(radius, mode)] = dset
 
-    #Get Psi4
+    # Get Psi4
+    # TODO: should I instead use the innermost radius to have an actual value
+    # and even more consistency with NakanoKerr?
     extrapolated_strains = {None: {}}
     for (el,em) in modes:                      # 25 times through the loop, from (1,1) to (4,4)
         mp_psi4_vars = []
@@ -393,7 +417,7 @@ def POWER(sim_path, radii, modes):
             #------------------------------------------------
             radius = radii[i]
             psi4dsetname = dsets[(radius, (el,em))]
-            mp_psi4 = loadHDF5Series(simdirs+"mp_psi4.h5", psi4dsetname)
+            mp_psi4 = loadHDF5Series(os.path.join(simdirs, "mp_psi4.h5"), psi4dsetname)
             mp_psi4_vars.append(mp_psi4)
 
 
@@ -524,16 +548,38 @@ def POWER(sim_path, radii, modes):
 # Nakano Method
 # -----------------------------------------------------------------------------
 
-def eq_29(sim_path, radii_list, modes):
+def NakanoKerr(sim_path, radii_list, modes):
+    """ Compute gravitational waveform at null infinity using the "Kerr"
+    variant of the perturbative method developed  by Nakano et al. in
+    PhysRevD.91.104022
+    https://journals.aps.org/prd/abstract/10.1103/PhysRevD.91.104022 .
+
+    sim_path is assumed to point to a Simfactory-like directory structure,
+    ie. contain directories output-???? then one more subdirectory then the
+    actual data files mp_[Pp]si4.h5 written by the Multipole thorn.
+
+    radii_list is list of floating point detector radii to use as starting
+    points for the perturbative evolution.
+
+    modes is a Python list of tuples (el,em) for all the modes that should be
+    computed.
+
+    modes requested but not found in the data file are silently assumed to be
+    zero.
+
+    Returns a dobule dictionary of column numpy arrays of strains indexed first
+    by the radius then by the (el,em) mode, ie. strains[radius][(el,em)] is a
+    numpy array.
+    """
 
     main_dir = sim_path
     sim = os.path.split(sim_path)[-1]
-    simdirs = sim_path+"/output-????/%s/" % (sim)
+    simdirs = os.path.join(sim_path, "output-????", sim)
 
     # get translation table from (mode, radius) to dataset name
     # TODO: this ought to be handled differently
     dsets = {}
-    fn = sorted(glob.glob(sim_path+"/output-????/*/mp_[Pp]si4.h5"))[0]
+    fn = sorted(glob.glob(os.path.join(sim_path, "output-????", "*", "mp_[Pp]si4.h5"))[0]
     with h5py.File(fn, "r") as fh:
         for dset in fh:
             # TODO: extend Multipole to save the radii as attributes and/or
@@ -548,14 +594,15 @@ def eq_29(sim_path, radii_list, modes):
     # hole while ADMMass is the total mas of the system. Using both is somewhat
     # inconsistent
     a, M = getFinalSpinFromQLM(sim_path)
-    f0 = getCutoffFrequencyFromTwoPuncturesBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
-    ADMMass = getADMMassFromTwoPunctureBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
+    meta_name = glob.glob(os.path.join(main_dir, "output-0000", "*". "TwoPunctures.bbh")[0]
+    f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
+    ADMMass = getADMMassFromTwoPunctureBBH(meta_name)
 
     extrapolated_strains = {}
     for radius in radii_list:
         extrapolated_strains[radius] = {}
         for (el,em) in modes:
-            ar = loadHDF5Series(simdirs+"mp_psi4.h5" , dsets[(radius, (el,em))])   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
+            ar = loadHDF5Series(os.path.join(simdirs, "mp_psi4.h5") , dsets[(radius, (el,em))])   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
 
             # retardate time by estimated travel time to each detector,
             # convert from psi4 to r*psi4 to account for initial 1/r falloff
@@ -594,7 +641,7 @@ def eq_29(sim_path, radii_list, modes):
             else:
                 # TODO: throw an error when a physical mode is not present in the file?
                 modes_a = dsets[(radius, (el+1,em))]         # "top" modes
-                ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
+                ar_a = loadHDF5Series(os.path.join(simdirs, 'mp_psi4.h5'), modes_a)
                 psi_a = np.column_stack((ar_a[:,0], ar_a[:,1] + 1j * ar_a[:,2]))
                 dt_psi_a = np.column_stack((psi_a[:,0], np.gradient(psi_a[:,1], psi_a[:,0])))
                 B = 2.j*a/(el+1.)**2*np.sqrt((el+3.)*(el-1)*(el+em+1.)*(el-em+1.)/((2.*el+1.)*(2.*el+3.)))
@@ -609,7 +656,7 @@ def eq_29(sim_path, radii_list, modes):
                 c_2 = 0.
             else:
                 modes_b = dsets[(radius, (el-1, em))]    # "bottom" modes
-                ar_b = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_b)
+                ar_b = loadHDF5Series(os.path.join(simdirs, 'mp_psi4.h5'), modes_b)
                 psi_b = np.column_stack((ar_b[:,0], ar_b[:,1] + 1j * ar_b[:,2]))
                 dt_psi_b = np.column_stack((psi_b[:,0], np.gradient(psi_b[:,1], psi_b[:,0])))
                 C = 2.j*a/el**2*np.sqrt((el+2.)*(el-2.)*(el+em)*(el-em)/((2.*el-1.)*(2.*el+1.)))
@@ -666,7 +713,7 @@ if __name__ == "__main__":
 
     elif args.method == "Nakano":
         print("Extrapolating with Nakano method...")
-        strains = eq_29(args.path, radii, modes)
+        strains = NakanaKerr(args.path, radii, modes)
 
     #Create data directories
     # Python version issue: Python2 uses OSError for existing directories,
