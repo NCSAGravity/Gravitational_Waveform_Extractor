@@ -639,7 +639,7 @@ def eq_29(sim_path, radii_list, modes):
                 f1 = psi4ToStrain(mp_psi4, f0)
                 imf1 = psi4ToStrain(immp_psi4, f0)
 
-                f3_cmp = f1 + imf1*.1j
+                f3_cmp = f1 + imf1*1j
                 # f3_cmp = f2 + imf2*1j
                 imf3 = f3_cmp.imag
                 f3 = f3_cmp.real
