@@ -56,50 +56,45 @@ import configparser
 #-----Function Definitions-----#
 
 def joinDsets(dsets):
-    
-        """joints multiple datasets which each have a
-        time like first column, eg iteration number of
-        time. Removes overlapping segments, keeping the
-        last segment.
-    
-        dsets = iterable of 2d array like objects with data"""
-        # joins multiple datasets of which the first column is assumed to be "time"
-        if(not dsets):
-            return None
-        length = 0
-        for d in dsets:
-            length += len(d)
-        newshape = list(dsets[0].shape)
-        newshape[0] = length
-        dset = np.empty(shape=newshape, dtype=dsets[0].dtype)
-        usedlength = 0
-        for d in dsets:
-            insertpointidx = np.where(dset[0:usedlength,0] >= d[0,0])
-            if(insertpointidx[0].size):
-                insertpoint = insertpointidx[0][0]
-            else:
-                insertpoint = usedlength
-            newlength = insertpoint+len(d)
-            dset[insertpoint:newlength] = d
-            usedlength = newlength
-        return dset[0:usedlength]
+    """joints multiple datasets which each have a
+    time like first column, eg iteration number of
+    time. Removes overlapping segments, keeping the
+    last segment.
 
+    dsets = iterable of 2d array like objects with data"""
+    # joins multiple datasets of which the first column is assumed to be "time"
+    if(not dsets):
+        return None
+    length = 0
+    for d in dsets:
+        length += len(d)
+    newshape = list(dsets[0].shape)
+    newshape[0] = length
+    dset = np.empty(shape=newshape, dtype=dsets[0].dtype)
+    usedlength = 0
+    for d in dsets:
+        insertpointidx = np.where(dset[0:usedlength,0] >= d[0,0])
+        if(insertpointidx[0].size):
+            insertpoint = insertpointidx[0][0]
+        else:
+            insertpoint = usedlength
+        newlength = insertpoint+len(d)
+        dset[insertpoint:newlength] = d
+        usedlength = newlength
+    return dset[0:usedlength]
 
 def loadHDF5Series(nameglob, series):
-        """load HDF5 timeseries data and concatenate the content of multiple files
-    
-        nameglob = a shell glob that matches all files to be loaded,
-        files are sorted alphabetically
-        series = HDF5 dataset name of dataset to load from files"""
-        dsets = list()
-        for fn in sorted(glob.glob(nameglob)):
-            fh = h5py.File(fn, "r")
-            dsets.append(fh[series])
-        return joinDsets(dsets)
+    """load HDF5 timeseries data and concatenate the content of multiple files
 
+    nameglob = a shell glob that matches all files to be loaded,
+    files are sorted alphabetically
+    series = HDF5 dataset name of dataset to load from files"""
+    dsets = list()
+    for fn in sorted(glob.glob(nameglob)):
+        fh = h5py.File(fn, "r")
+        dsets.append(fh[series])
+    return joinDsets(dsets)
 
-
-    
 #Convert radial to tortoise coordinates
 def RadialToTortoise(r, M):
     """
@@ -136,7 +131,7 @@ def FFIIntegrate(mp_psi4, f0):
 def psi4ToStrain(mp_psi4, f0):
     """
     Convert the input mp_psi4 data to the strain of the gravitational wave
-    
+
     mp_psi4 = Weyl scalar result from simulation
     f0 = cutoff frequency
     return = strain (h) of the gravitational wave
@@ -224,24 +219,24 @@ def angular_momentum(x, q, m, chi1, chi2, LInitNR):
     # TODO: get referecen for this from EAH
     l = (eta/x**(1./2.)*(
         1. +
-        x*(3./2. + 1./6.*eta) + 
-        x**2. *(27./8. - 19./8.*eta + 1./24.*eta**2.) + 
-        x**3. *(135./16. + (-6889./144. + 41./24. * math.pi**2.)*eta + 31./24.*eta**2. + 7./1296.*eta**3.) + 
-        x**4. *((2835./128.) + eta*j4 - (64.*eta*math.log(x)/3.))+ 
+        x*(3./2. + 1./6.*eta) +
+        x**2. *(27./8. - 19./8.*eta + 1./24.*eta**2.) +
+        x**3. *(135./16. + (-6889./144. + 41./24. * math.pi**2.)*eta + 31./24.*eta**2. + 7./1296.*eta**3.) +
+        x**4. *((2835./128.) + eta*j4 - (64.*eta*math.log(x)/3.))+
         x**5. *((15309./256.) + eta*j5 + ((9976./105.) + (1312.*eta/15.))*eta*math.log(x))+
-        x**(3./2.)*(-(35./6.)*Sl - 5./2.*DeltaM* Sigmal) + 
-        x**(5./2.)*((-(77./8.) + 427./72.*eta)*Sl + DeltaM* (-(21./8.) + 35./12.*eta)*Sigmal) + 
-        x**(7./2.)*((-(405./16.) + 1101./16.*eta - 29./16.*eta**2.)*Sl + DeltaM*(-(81./16.) + 117./4.*eta - 15./16.*eta**2.)*Sigmal) + 
+        x**(3./2.)*(-(35./6.)*Sl - 5./2.*DeltaM* Sigmal) +
+        x**(5./2.)*((-(77./8.) + 427./72.*eta)*Sl + DeltaM* (-(21./8.) + 35./12.*eta)*Sigmal) +
+        x**(7./2.)*((-(405./16.) + 1101./16.*eta - 29./16.*eta**2.)*Sl + DeltaM*(-(81./16.) + 117./4.*eta - 15./16.*eta**2.)*Sigmal) +
         (1./2. + (m1 - m2)/2. - eta)* chi1**2. * x**2. +
-        (1./2. + (m2 - m1)/2. - eta)* chi2**2. * x**2. + 
+        (1./2. + (m2 - m1)/2. - eta)* chi2**2. * x**2. +
         2.*eta*chi1*chi2*x**2. +
         ((13.*chi1**2.)/9. +
         (13.*CapitalDelta*chi1**2.)/9. -
-        (55.*nu*chi1**2.)/9. - 
-        29./9.*CapitalDelta*nu*chi1**2. + 
+        (55.*nu*chi1**2.)/9. -
+        29./9.*CapitalDelta*nu*chi1**2. +
         (14.*nu**2. *chi1**2.)/9. +
         (7.*nu*chi1*chi2)/3. +
-        17./18.* nu**2. * chi1 * chi2 + 
+        17./18.* nu**2. * chi1 * chi2 +
         (13.* chi2**2.)/9. -
         (13.*CapitalDelta*chi2**2.)/9. -
         (55.*nu*chi2**2.)/9. +
@@ -358,22 +353,19 @@ def getModesInFile(sim_path):
     radii = sorted(radii)
     return radii, modes
 
-
-
 # -----------------------------------------------------------------------------
 # POWER Method
 # -----------------------------------------------------------------------------
- 
-    
+
 def POWER(sim_path, radii, modes):
     main_dir = sim_path
     sim = os.path.split(sim_path)[-1]
-    
+
     simdirs = main_dir+"/output-????/%s/" % (sim)
     f0 = getCutoffFrequencyFromTwoPuncturesBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
     #Get simulation total mass
     ADMMass = getADMMassFromTwoPunctureBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
-    
+
     # get translation table from (mode, radius) to dataset name
     # TODO: this ought to be handled differently
     dsets = {}
@@ -391,155 +383,149 @@ def POWER(sim_path, radii, modes):
     #Get Psi4
     extrapolated_strains = []
     for (el,em) in modes:                      # 25 times through the loop, from (1,1) to (4,4)
-            mp_psi4_vars = []
-            strain = []
-            phase = []
-            amp = []
-            for i in range(len(radii)):      # so 7 times through each mode at each of the 7 radii
-                    #------------------------------------------------
-                    # Read in HDF5 data
-                    #------------------------------------------------
-                    radius = radii[i]
-                    psi4dsetname = dsets[(radius, (el,em))]
-                    mp_psi4 = loadHDF5Series(simdirs+"mp_psi4.h5", psi4dsetname)
-                    mp_psi4_vars.append(mp_psi4)
-                    
-
-                    #-----------------------------------------
-                    # Prepare for conversion to strain
-                    #-----------------------------------------
-                    # retardate time by estimated travel time to each detector,
-                    # convert from psi4 to r*psi4 to account for initial 1/r falloff
-                    # RH: it might be even better (though harder to define) to
-                    # get a retardating time by looking at the time of the
-                    # maximum (found as an optimization over an interpolating
-                    # function, not argmax)
-                    mp_psi4_vars[i][:, 0] -= RadialToTortoise(radius, ADMMass)
-                    mp_psi4_vars[i][:, 1] *= radii[i]
-                    mp_psi4_vars[i][:, 2] *= radii[i]
-    
-                    #Check for psi4 amplitude going to zero
-                    # RH: this makes very little sense since the amplitude is
-                    # expected to be zero initially and very late
-                    psi4_amp = np.sqrt(mp_psi4_vars[i][:, 1]**2 + mp_psi4_vars[i][:, 2]**2)
-                    min_psi4_amp = np.amin(psi4_amp)
-                    if(min_psi4_amp < np.finfo(float).eps and el >= 2):
-                        print("The psi4 amplitude is near zero. The phase is ill-defined.")
-    
-                    #Fixed-frequency integration twice to get strain
-                    #-----------------------------------------------------------------
-                    # Strain Conversion
-                    #-----------------------------------------------------------------
-
-                    hTable = psi4ToStrain(mp_psi4_vars[i], f0)  # table of strain
-
-                    
-                    time = hTable[:, 0]
-                    h = hTable[:, 1]
-                    hplus = h.real
-                    hcross = h.imag
-                    newhTable = np.column_stack((time, hplus, hcross))
-                    warnings.filterwarnings('ignore')
-                    finalhTable = newhTable.astype(float)
-                    strain.append(finalhTable)
-                    
-                    
-                    #-------------------------------------------------------------------
-                    # Analysis of Strain
-                    #-------------------------------------------------------------------
-                    #Get phase and amplitude of strain
-                    h_phase = np.unwrap(np.angle(h))
-                    # print(len(h_phase), "h_phase length")
-                    # print(len(time), "time length")
-                    angleTable = np.column_stack((time, h_phase))     ### start here
-                    angleTable = angleTable.astype(float)             ### b/c t is defined based on
-                    phase.append(angleTable)                          ### time here
-                    h_amp = np.absolute(h)
-                    ampTable = np.column_stack((time, h_amp))
-                    ampTable = ampTable.astype(float)
-                    amp.append(ampTable)
+        mp_psi4_vars = []
+        strain = []
+        phase = []
+        amp = []
+        for i in range(len(radii)):      # so 7 times through each mode at each of the 7 radii
+            #------------------------------------------------
+            # Read in HDF5 data
+            #------------------------------------------------
+            radius = radii[i]
+            psi4dsetname = dsets[(radius, (el,em))]
+            mp_psi4 = loadHDF5Series(simdirs+"mp_psi4.h5", psi4dsetname)
+            mp_psi4_vars.append(mp_psi4)
 
 
-            #print("h_amp:" , h_amp)
+            #-----------------------------------------
+            # Prepare for conversion to strain
+            #-----------------------------------------
+            # retardate time by estimated travel time to each detector,
+            # convert from psi4 to r*psi4 to account for initial 1/r falloff
+            # RH: it might be even better (though harder to define) to
+            # get a retardating time by looking at the time of the
+            # maximum (found as an optimization over an interpolating
+            # function, not argmax)
+            mp_psi4_vars[i][:, 0] -= RadialToTortoise(radius, ADMMass)
+            mp_psi4_vars[i][:, 1] *= radii[i]
+            mp_psi4_vars[i][:, 2] *= radii[i]
 
-            #----------------------------------------------------------------------
-            # Extrapolation
-            #----------------------------------------------------------------------
+            #Check for psi4 amplitude going to zero
+            # RH: this makes very little sense since the amplitude is
+            # expected to be zero initially and very late
+            psi4_amp = np.sqrt(mp_psi4_vars[i][:, 1]**2 + mp_psi4_vars[i][:, 2]**2)
+            min_psi4_amp = np.amin(psi4_amp)
+            if(min_psi4_amp < np.finfo(float).eps and el >= 2):
+                print("The psi4 amplitude is near zero. The phase is ill-defined.")
 
-            # get common range in times
-            tmin = max([phase[i][ 0,0] for i in range(len(phase))])
-            tmax = min([phase[i][-1,0] for i in range(len(phase))])
+            #Fixed-frequency integration twice to get strain
+            #-----------------------------------------------------------------
+            # Strain Conversion
+            #-----------------------------------------------------------------
 
-            # smallest timestep in any series
-            dtmin = min([np.amin(np.diff(phase[0][:,0])) for i in range(len(phase))])
+            hTable = psi4ToStrain(mp_psi4_vars[i], f0)  # table of strain
 
-            # uniform, common time
-            t = np.arange(tmin, tmax, dtmin)
+            time = hTable[:, 0]
+            h = hTable[:, 1]
+            hplus = h.real
+            hcross = h.imag
+            newhTable = np.column_stack((time, hplus, hcross))
+            warnings.filterwarnings('ignore')
+            finalhTable = newhTable.astype(float)
+            strain.append(finalhTable)
 
-            # Interpolate phase and amplitude
-            interpolation_order = 9
-            for i in range(len(radii)):
-                    interp_function = scipy.interpolate.interp1d(amp[i][:, 0], amp[i][:, 1], kind=interpolation_order)
-                    resampled_amp_vals = interp_function(t)
-                    amp[i] = np.column_stack((t, resampled_amp_vals))
+            #-------------------------------------------------------------------
+            # Analysis of Strain
+            #-------------------------------------------------------------------
+            #Get phase and amplitude of strain
+            h_phase = np.unwrap(np.angle(h))
+            # print(len(h_phase), "h_phase length")
+            # print(len(time), "time length")
+            angleTable = np.column_stack((time, h_phase))     ### start here
+            angleTable = angleTable.astype(float)             ### b/c t is defined based on
+            phase.append(angleTable)                          ### time here
+            h_amp = np.absolute(h)
+            ampTable = np.column_stack((time, h_amp))
+            ampTable = ampTable.astype(float)
+            amp.append(ampTable)
 
-                    interp_function = scipy.interpolate.interp1d(phase[i][:, 0], phase[i][:, 1], kind=interpolation_order)
-                    resampled_phase_vals = interp_function(t)
-                    # try and keep all phases at the amplitude maximum within 2pi of each other
-                    # alignment is between neighbhours just in case there actually ever is
-                    # >2pi difference between the innermost and the ohtermost detector
-                    if(i > 0):
-                        # for some modes (post 2,2) the initial junk can be the
-                        # largest amplitude contribution, so w try to skip it
-                        # when looking for maxima
-                        junk_time = 50.
-                        post_junk_idx_p = amp[i-1][:,0] > junk_time
-                        post_junk_idx = amp[i-1][:,0] > junk_time
-                        maxargp = np.argmax(amp[i-1][post_junk_idx_p,1])
-                        maxarg = np.argmax(amp[i][post_junk_idx,1])
-                        phase_shift = round((resampled_phase_vals[post_junk_idx][maxarg] - phase[i-1][post_junk_idx_p][maxargp,1])/(2.*math.pi))*2.*math.pi
-                        resampled_phase_vals -= phase_shift
-                    phase[i] = np.column_stack((t, resampled_phase_vals))
+        #----------------------------------------------------------------------
+        # Extrapolation
+        #----------------------------------------------------------------------
 
-            #Extrapolate
-            phase_extrapolation_order = 1
-            amp_extrapolation_order = 2
-            radii = np.asarray(radii, dtype=float)
-            A_phase = np.ones_like(radii)
-            A_amp = np.ones_like(radii)
+        # get common range in times
+        tmin = max([phase[i][ 0,0] for i in range(len(phase))])
+        tmax = min([phase[i][-1,0] for i in range(len(phase))])
 
-            for i in range(1, phase_extrapolation_order+1):
-                A_phase = np.column_stack((A_phase, np.power(radii, -1*i)))
-    
-            for i in range(1, amp_extrapolation_order+1):
-                A_amp = np.column_stack((A_amp, np.power(radii, -1*i)))
-    
-            b_phase = np.empty_like(radii, shape=(len(radii), len(t)))
-            b_amp = np.empty_like(radii, shape=(len(radii), len(t)))
-            for j in range(len(radii)):
-                b_phase[j] = phase[j][:, 1]
-                b_amp[j] = amp[j][:, 1]
+        # smallest timestep in any series
+        dtmin = min([np.amin(np.diff(phase[0][:,0])) for i in range(len(phase))])
 
-            x_phase = np.linalg.lstsq(A_phase, b_phase)[0]
-            radially_extrapolated_phase = x_phase[0]
-    
-            x_amp = np.linalg.lstsq(A_amp, b_amp)[0]
-            radially_extrapolated_amp = x_amp[0]
+        # uniform, common time
+        t = np.arange(tmin, tmax, dtmin)
 
-            radially_extrapolated_h_plus = radially_extrapolated_amp * np.cos(radially_extrapolated_phase)
-            radially_extrapolated_h_cross = radially_extrapolated_amp * np.sin(radially_extrapolated_phase)
+        # Interpolate phase and amplitude
+        interpolation_order = 9
+        for i in range(len(radii)):
+            interp_function = scipy.interpolate.interp1d(amp[i][:, 0], amp[i][:, 1], kind=interpolation_order)
+            resampled_amp_vals = interp_function(t)
+            amp[i] = np.column_stack((t, resampled_amp_vals))
 
-            extrapolated_strains.append(np.column_stack((t, radially_extrapolated_h_plus, radially_extrapolated_h_cross)))
+            interp_function = scipy.interpolate.interp1d(phase[i][:, 0], phase[i][:, 1], kind=interpolation_order)
+            resampled_phase_vals = interp_function(t)
+            # try and keep all phases at the amplitude maximum within 2pi of each other
+            # alignment is between neighbhours just in case there actually ever is
+            # >2pi difference between the innermost and the ohtermost detector
+            if(i > 0):
+                # for some modes (post 2,2) the initial junk can be the
+                # largest amplitude contribution, so w try to skip it
+                # when looking for maxima
+                junk_time = 50.
+                post_junk_idx_p = amp[i-1][:,0] > junk_time
+                post_junk_idx = amp[i-1][:,0] > junk_time
+                maxargp = np.argmax(amp[i-1][post_junk_idx_p,1])
+                maxarg = np.argmax(amp[i][post_junk_idx,1])
+                phase_shift = round((resampled_phase_vals[post_junk_idx][maxarg] - phase[i-1][post_junk_idx_p][maxargp,1])/(2.*math.pi))*2.*math.pi
+                resampled_phase_vals -= phase_shift
+            phase[i] = np.column_stack((t, resampled_phase_vals))
+
+        #Extrapolate
+        phase_extrapolation_order = 1
+        amp_extrapolation_order = 2
+        radii = np.asarray(radii, dtype=float)
+        A_phase = np.ones_like(radii)
+        A_amp = np.ones_like(radii)
+
+        for i in range(1, phase_extrapolation_order+1):
+            A_phase = np.column_stack((A_phase, np.power(radii, -1*i)))
+
+        for i in range(1, amp_extrapolation_order+1):
+            A_amp = np.column_stack((A_amp, np.power(radii, -1*i)))
+
+        b_phase = np.empty_like(radii, shape=(len(radii), len(t)))
+        b_amp = np.empty_like(radii, shape=(len(radii), len(t)))
+        for j in range(len(radii)):
+            b_phase[j] = phase[j][:, 1]
+            b_amp[j] = amp[j][:, 1]
+
+        x_phase = np.linalg.lstsq(A_phase, b_phase)[0]
+        radially_extrapolated_phase = x_phase[0]
+
+        x_amp = np.linalg.lstsq(A_amp, b_amp)[0]
+        radially_extrapolated_amp = x_amp[0]
+
+        radially_extrapolated_h_plus = radially_extrapolated_amp * np.cos(radially_extrapolated_phase)
+        radially_extrapolated_h_cross = radially_extrapolated_amp * np.sin(radially_extrapolated_phase)
+
+        extrapolated_strains.append(np.column_stack((t, radially_extrapolated_h_plus, radially_extrapolated_h_cross)))
     return extrapolated_strains
-        
+
 
 # -----------------------------------------------------------------------------
 # Nakano Method
 # -----------------------------------------------------------------------------
 
-        
 def eq_29(sim_path, radii_list, modes):
-    
+
     main_dir = sim_path
     sim = os.path.split(sim_path)[-1]
     simdirs = sim_path+"/output-????/%s/" % (sim)
@@ -564,75 +550,74 @@ def eq_29(sim_path, radii_list, modes):
     extrapolated_strains = []
     for (el,em) in modes:
         for radius in radii_list:
-        
-                ar = loadHDF5Series(simdirs+"mp_psi4.h5" , dsets[(radius, (el,em))])   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
-                
-                psi = np.column_stack((ar[:,0], ar[:,1] + 1j * ar[:,2]))
-                # 1st column of ar, time data points
-                # 2nd column of ar, data points for psi
-                # 3rd column of ar, data points for imaginary psi
-                
-                news = FFIIntegrate(psi, f0)
-                strain = FFIIntegrate(news, f0)
-            
-                # TODO: check if expressions are applicable for el < 2 at all or
-                # of Nakano's derivation requires el>=2 to begin with
-                A = 1.-(2.*M/radius)
-                a_1 = radius
-                if el < 1:
-                    a_2 = 0.
-                    a_3 = 0.
-                else:
-                    a_2 = (el-1.)*(el+2.)/(2.*radius)
-                    # Note: third term is negative for el==1
-                    a_3 = (el-1.)*(el+2.)*(el**2 + el - 4.)/(8*radius*radius)
+            ar = loadHDF5Series(simdirs+"mp_psi4.h5" , dsets[(radius, (el,em))])   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
 
-                if el < 1 or (radius, (el+1,em)) not in dsets:
-                    psi_a = np.zeros_like(psi)             # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
-                    dt_psi_a = np.zeros_like(psi)          # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
-                    B = 0.
-                    b_1 = 0.
-                    b_2 = 0.
-                else:
-                    # TODO: throw an error when a physical mode is not present in the file?
-                    modes_a = dsets[(radius, (el+1,em))]         # "top" modes
-                    ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
-                    psi_a = np.column_stack((ar_a[:,0], ar_a[:,1] + 1j * ar_a[:,2]))
-                    dt_psi_a = np.column_stack((psi_a[:,0], np.gradient(psi_a[:,1], psi_a[:,0])))
-                    B = 2.j*a/(el+1.)**2*np.sqrt((el+3.)*(el-1)*(el+em+1.)*(el-em+1.)/((2.*el+1.)*(2.*el+3.)))
-                    b_1 = 1.
-                    b_2 = el*(el+3.)/radius
+            psi = np.column_stack((ar[:,0], ar[:,1] + 1j * ar[:,2]))
+            # 1st column of ar, time data points
+            # 2nd column of ar, data points for psi
+            # 3rd column of ar, data points for imaginary psi
 
-                if em > el-1 or el < 2:                       # if em is greater than the bottom mode...
-                    psi_b = np.zeros_like(psi)             # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
-                    dt_psi_b = np.zeros_like(psi)          # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
-                    C = 0.
-                    c_1 = 0.
-                    c_2 = 0.
-                else:
-                    modes_b = dsets[(radius, (el-1, em))]    # "bottom" modes
-                    ar_b = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_b)
-                    psi_b = np.column_stack((ar_b[:,0], ar_b[:,1] + 1j * ar_b[:,2]))
-                    dt_psi_b = np.column_stack((psi_b[:,0], np.gradient(psi_b[:,1], psi_b[:,0])))
-                    C = 2.j*a/el**2*np.sqrt((el+2.)*(el-2.)*(el+em)*(el-em)/((2.*el-1.)*(2.*el+1.)))
-                    c_1 = 1.
-                    c_2 = (el-2.)*(el+1.)/radius
+            news = FFIIntegrate(psi, f0)
+            strain = FFIIntegrate(news, f0)
 
-                extrapolated_psi_data = A*(a_1*psi[:,1] - a_2*radius*news[:,1] + a_3*radius*strain[:,1]) + B*(b_1*radius*dt_psi_a[:,1] - b_2*radius*psi_a[:,1]) - C*(c_1*radius*dt_psi_b[:,1] - c_2*radius*psi_b[:,1])
+            # TODO: check if expressions are applicable for el < 2 at all or
+            # of Nakano's derivation requires el>=2 to begin with
+            A = 1.-(2.*M/radius)
+            a_1 = radius
+            if el < 1:
+                a_2 = 0.
+                a_3 = 0.
+            else:
+                a_2 = (el-1.)*(el+2.)/(2.*radius)
+                # Note: third term is negative for el==1
+                a_3 = (el-1.)*(el+2.)*(el**2 + el - 4.)/(8*radius*radius)
 
-                extrapolated_psi = np.column_stack((psi[:,0], extrapolated_psi_data.real, extrapolated_psi_data.imag))
+            if el < 1 or (radius, (el+1,em)) not in dsets:
+                psi_a = np.zeros_like(psi)             # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
+                dt_psi_a = np.zeros_like(psi)          # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
+                B = 0.
+                b_1 = 0.
+                b_2 = 0.
+            else:
+                # TODO: throw an error when a physical mode is not present in the file?
+                modes_a = dsets[(radius, (el+1,em))]         # "top" modes
+                ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
+                psi_a = np.column_stack((ar_a[:,0], ar_a[:,1] + 1j * ar_a[:,2]))
+                dt_psi_a = np.column_stack((psi_a[:,0], np.gradient(psi_a[:,1], psi_a[:,0])))
+                B = 2.j*a/(el+1.)**2*np.sqrt((el+3.)*(el-1)*(el+em+1.)*(el-em+1.)/((2.*el+1.)*(2.*el+3.)))
+                b_1 = 1.
+                b_2 = el*(el+3.)/radius
 
-                extrapolated_strain = psi4ToStrain(extrapolated_psi, f0)
+            if em > el-1 or el < 2:                       # if em is greater than the bottom mode...
+                psi_b = np.zeros_like(psi)             # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
+                dt_psi_b = np.zeros_like(psi)          # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
+                C = 0.
+                c_1 = 0.
+                c_2 = 0.
+            else:
+                modes_b = dsets[(radius, (el-1, em))]    # "bottom" modes
+                ar_b = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_b)
+                psi_b = np.column_stack((ar_b[:,0], ar_b[:,1] + 1j * ar_b[:,2]))
+                dt_psi_b = np.column_stack((psi_b[:,0], np.gradient(psi_b[:,1], psi_b[:,0])))
+                C = 2.j*a/el**2*np.sqrt((el+2.)*(el-2.)*(el+em)*(el-em)/((2.*el-1.)*(2.*el+1.)))
+                c_1 = 1.
+                c_2 = (el-2.)*(el+1.)/radius
 
-                extrapolated_strains.append(np.column_stack(
-                  (extrapolated_strain[:,0].real, extrapolated_strain[:,1].real,
-                   extrapolated_strain[:,1].imag)))
+            extrapolated_psi_data = A*(a_1*psi[:,1] - a_2*radius*news[:,1] + a_3*radius*strain[:,1]) + B*(b_1*radius*dt_psi_a[:,1] - b_2*radius*psi_a[:,1]) - C*(c_1*radius*dt_psi_b[:,1] - c_2*radius*psi_b[:,1])
+
+            extrapolated_psi = np.column_stack((psi[:,0], extrapolated_psi_data.real, extrapolated_psi_data.imag))
+
+            extrapolated_strain = psi4ToStrain(extrapolated_psi, f0)
+
+            extrapolated_strains.append(np.column_stack(
+              (extrapolated_strain[:,0].real, extrapolated_strain[:,1].real,
+               extrapolated_strain[:,1].imag)))
     return extrapolated_strains
 
 
 # -----------------------------------------------------------------------------
-        
-    
+
+
 ### argparse machinery:
 
 if __name__ == "__main__":
@@ -663,15 +648,12 @@ if __name__ == "__main__":
         main_directory = "Extrapolated_Strain"
         sim_dir = main_directory + "/" + sim
         if not os.path.exists(main_directory):
-                os.makedirs(main_directory)
+            os.makedirs(main_directory)
         if not os.path.exists(sim_dir):
-                os.makedirs(sim_dir)
+            os.makedirs(sim_dir)
 
         for i, (el,em) in enumerate(modes):
             np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l"+str(el)+"_m"+str(em)+".dat", strains[i])
-
-
-
 
     elif args.method == "Nakano":
         print("Extrapolating with Nakano method...")
@@ -686,9 +668,9 @@ if __name__ == "__main__":
         main_directory = "Extrapolated_Strain(Nakano_Kerr)"
         sim_dir = main_directory + "/" + sim
         if not os.path.exists(main_directory):
-                os.makedirs(main_directory)
+            os.makedirs(main_directory)
         if not os.path.exists(sim_dir):
-                os.makedirs(sim_dir)
+            os.makedirs(sim_dir)
 
         strain = iter(strains)
         for (el,em) in modes:
