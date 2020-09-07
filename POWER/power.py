@@ -123,7 +123,6 @@ def psi4ToStrain(mp_psi4, f0):
     #TODO: Check for uniform spacing in time
     t0 = mp_psi4[:, 0]
     list_len = len(t0)
-    complexPsi = np.zeros(list_len, dtype=np.complex_)
     complexPsi = mp_psi4[:, 1]+1.j*mp_psi4[:, 2]
 
     freq, psif = myFourierTransform(t0, complexPsi)
