@@ -450,13 +450,11 @@ def POWER(sim_path, radii, modes):
 
             hTable = psi4ToStrain(mp_psi4_vars[i], f0)  # table of strain
 
-            time = hTable[:, 0]
+            time = hTable[:, 0].real
             h = hTable[:, 1]
             hplus = h.real
             hcross = h.imag
             newhTable = np.column_stack((time, hplus, hcross))
-            warnings.filterwarnings('ignore')
-            finalhTable = newhTable.astype(float)
             strain.append(finalhTable)
 
             #-------------------------------------------------------------------
@@ -467,11 +465,9 @@ def POWER(sim_path, radii, modes):
             # print(len(h_phase), "h_phase length")
             # print(len(time), "time length")
             angleTable = np.column_stack((time, h_phase))     ### start here
-            angleTable = angleTable.astype(float)             ### b/c t is defined based on
             phase.append(angleTable)                          ### time here
             h_amp = np.absolute(h)
             ampTable = np.column_stack((time, h_amp))
-            ampTable = ampTable.astype(float)
             amp.append(ampTable)
 
         #----------------------------------------------------------------------
