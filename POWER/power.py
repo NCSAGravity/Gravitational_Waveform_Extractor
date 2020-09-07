@@ -111,6 +111,27 @@ def RadialToTortoise(r, M):
     """
     return r + 2. * M * math.log( r / (2. * M) - 1.)
 
+# use fixed frequency integration to integrate psi4 once
+def FFIIntegrate(mp_psi4, f0):
+    """
+    Compute the integral of mmp_psi4 data using fixed frequency integration
+
+    mp_psi4 = Weyl scalar result from simulation
+    f0 = cutoff frequency
+    return = news of the gravitational wave
+    """
+    #TODO: Check for uniform spacing in time
+    t0 = mp_psi4[:, 0]
+    list_len = len(t0)
+    complexPsi = mp_psi4[:, 1]
+
+    freq, psif = myFourierTransform(t0, complexPsi)
+    hf = ffi(freq, psif, f0)
+
+    time, h = myFourierTransformInverse(freq, hf, t0[0])
+    hTable = np.column_stack((time, h))
+    return hTable
+
 #Convert modified psi4 to strain
 def psi4ToStrain(mp_psi4, f0):
     """
@@ -519,28 +540,6 @@ def POWER(sim_path, radii, modes):
         
 def eq_29(sim_path, radii_list, modes):
     
-    def psi4ToStrain2(mp_psi4, f0):
-        """
-        Convert the input mp_psi4 data to the strain of the gravitational wave
-        
-        mp_psi4 = Weyl scalar result from simulation
-        f0 = cutoff frequency
-        return = strain (h) of the gravitational wave
-        """
-        #TODO: Check for uniform spacing in time
-        t0 = mp_psi4[:, 0]
-        list_len = len(t0)
-        complexPsi = mp_psi4[:, 1]
-    
-        freq, psif = myFourierTransform(t0, complexPsi)
-        hf = ffi(freq, psif, f0)
-    
-        time, h = myFourierTransformInverse(freq, hf, t0[0])
-        hTable = np.column_stack((time, h))
-        return hTable
-            
-### ---------
-            
     main_dir = sim_path
     sim = os.path.split(sim_path)[-1]
     simdirs = sim_path+"/output-????/%s/" % (sim)
@@ -573,8 +572,8 @@ def eq_29(sim_path, radii_list, modes):
                 # 2nd column of ar, data points for psi
                 # 3rd column of ar, data points for imaginary psi
                 
-                news = psi4ToStrain2(psi, f0)
-                strain = psi4ToStrain2(news, f0)
+                news = FFIIntegrate(psi, f0)
+                strain = FFIIntegrate(news, f0)
             
                 # TODO: check if expressions are applicable for l < 2 at all or
                 # of Nakano's derivation requires l>=2 to begin with
