@@ -47,10 +47,8 @@ import h5py
 import re
 import math
 import sys
-import warnings
 import scipy.optimize
 import scipy.interpolate
-import scipy.integrate
 import argparse
 import configparser
 
