@@ -231,6 +231,14 @@ def angular_momentum(x, q, m, chi1, chi2, LInitNR):
     return l - LInitNR
 
 
+def getFinalSpinFromQLM(sim_path):
+    mass_path = sorted(glob.glob(os.path.join(sim_path, "output-????", "*", "quasilocalmeasures-qlm_scalars..asc")))
+    A_val = np.loadtxt(mass_path[-1])     ## For mass calculation
+    M_final = A_val[:,58][-1]
+    Sz_final = A_val[:,37][-1]
+    a_final = Sz_final / M_final
+    return a_final, M_final
+
 def getADMMassFromTwoPunctureBBH(meta_filename):
     """
     Determine cutoff frequency of simulation
@@ -553,6 +561,9 @@ def eq_29(sim_path, radii_list, modes):
                 mode = (int(m.group(1)), int(m.group(2)))
                 dsets[(radius, mode)] = dset
 
+    a, M = getFinalSpinFromQLM(sim_path)
+    f0 = getCutoffFrequencyFromTwoPuncturesBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
+
     extrapolated_strains = []
     for (l,m) in modes:
         for radius in radii_list:
@@ -565,7 +576,6 @@ def eq_29(sim_path, radii_list, modes):
                 impsi = ar[:, 2]   # 3rd column of ar, data points for imaginary psi
                 
 
-                f0 = getCutoffFrequencyFromTwoPuncturesBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
                 length_psi = len(psi)
                 some_zeros1 = np.zeros(length_psi, dtype = np.complex_)
     
@@ -582,14 +592,6 @@ def eq_29(sim_path, radii_list, modes):
                 d_in = psi4ToStrain2(s_in, f0)
                 imd_in = psi4ToStrain2(ims_in, f0)
             
-
-                mass_path = sorted(glob.glob(simdirs))
-                A_val = np.loadtxt(mass_path[-1]+"quasilocalmeasures-qlm_scalars..asc")     ## For mass calculation
-                r = radius
-                M = A_val[:,58][-1]
-                a = (A_val[:,37]/A_val[:,58])[-1]
-
-
                 modes_a = "l%d_m%d_r%.2f" %(l+1, m, radius)         # "top" modes
                 modes_b = "l%d_m%d_r%.2f" %(l-1, m, radius)         # "bottom" modes
                 ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
@@ -611,6 +613,7 @@ def eq_29(sim_path, radii_list, modes):
                     impsi_b = ar_b[:,2]
 
 
+                r = radius
                 A = 1-(2*M/r)
                 a_1 = r
                 a_2 = ((l-1)*(l+2))/(2*r)
