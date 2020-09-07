@@ -530,8 +530,7 @@ def eq_29(sim_path, radii_list, modes):
         #TODO: Check for uniform spacing in time
         t0 = mp_psi4[:, 0]
         list_len = len(t0)
-        complexPsi = np.zeros(list_len, dtype=np.complex_)
-        complexPsi = mp_psi4[:, 1]+1.j*mp_psi4[:, 2]
+        complexPsi = mp_psi4[:, 1]
     
         freq, psif = myFourierTransform(t0, complexPsi)
         hf = ffi(freq, psif, f0)
@@ -569,47 +568,31 @@ def eq_29(sim_path, radii_list, modes):
         
                 ar = loadHDF5Series(simdirs+"mp_psi4.h5" , dsets[(radius, (l,m))])   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
                 
-
-                t = ar[:,0]      # 1st column of ar, time data points
-                psi = ar[:,1]    # 2nd column of ar, data points for psi
-                impsi = ar[:, 2]   # 3rd column of ar, data points for imaginary psi
+                psi = np.column_stack((ar[:,0], ar[:,1] + 1j * ar[:,2]))
+                # 1st column of ar, time data points
+                # 2nd column of ar, data points for psi
+                # 3rd column of ar, data points for imaginary psi
                 
-
-                length_psi = len(psi)
-                some_zeros1 = np.zeros(length_psi, dtype = np.complex_)
-    
-                new_psi = np.column_stack((t, psi, some_zeros1))
-                new_impsi = np.column_stack((t, impsi, some_zeros1))
-
-                s_in = psi4ToStrain2(new_psi, f0)
-                ims_in = psi4ToStrain2(new_impsi, f0)
-                s_in = s_in[:-2]
-                ims_in = ims_in[:-2]
-                s_in = np.column_stack((s_in, some_zeros1[:-2]))
-                ims_in = np.column_stack((ims_in, some_zeros1[:-2]))
-                        
-                d_in = psi4ToStrain2(s_in, f0)
-                imd_in = psi4ToStrain2(ims_in, f0)
+                news = psi4ToStrain2(psi, f0)
+                strain = psi4ToStrain2(news, f0)
             
-                modes_a = "l%d_m%d_r%.2f" %(l+1, m, radius)         # "top" modes
-                modes_b = "l%d_m%d_r%.2f" %(l-1, m, radius)         # "bottom" modes
-                ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
-
-
-                t_a = ar_a[:,0]
-                psi_a = ar_a[:,1]
-                impsi_a = ar_a[:,2]
-                t_b = t_a
-            
+                if (radius, (l+1,m)) in dsets:
+                    modes_a = dsets[(radius, (l+1,m))]         # "top" modes
+                    ar_a = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_a)
+                    psi_a = np.column_stack((ar_a[:,0], ar_a[:,1] + 1j * ar_a[:,2]))
+                    dt_psi_a = np.column_stack((psi_a[:,0], np.gradient(psi_a[:,1], psi_a[:,0])))
+                else:
+                    psi_a = np.zeros_like(psi)             # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
+                    dt_psi_a = np.zeros_like(psi)          # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
 
                 if m > l-1:                                # if m is greater than the bottom mode...
-                    psi_b = np.zeros(len(psi_a))                # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
-                    impsi_b = np.zeros(len(impsi_a))
-
+                    psi_b = np.zeros_like(psi)             # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
+                    dt_psi_b = np.zeros_like(psi)          # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
                 else:
+                    modes_b = dsets[(radius, (l-1, m))]    # "bottom" modes
                     ar_b = loadHDF5Series(simdirs+'mp_psi4.h5' , modes_b)
-                    psi_b = ar_b[:,1]
-                    impsi_b = ar_b[:,2]
+                    psi_b = np.column_stack((ar_b[:,0], ar_b[:,1] + 1j * ar_b[:,2]))
+                    dt_psi_b = np.column_stack((psi_b[:,0], np.gradient(psi_b[:,1], psi_b[:,0])))
 
 
                 r = radius
@@ -625,27 +608,15 @@ def eq_29(sim_path, radii_list, modes):
                 c_2 = (l-2)*(l+1)
 
 
-                ans = A*(a_1*psi[2:] - a_2*s_in[:,2] + a_3*d_in[:,1]) + B*(b_1*np.gradient(psi_a, t_a)[2:] - b_2*psi_a[2:]) - C*(c_1*np.gradient(psi_b, t_b)[2:] - c_2*psi_b[2:])
-                imans = A*(a_1*impsi[2:] - a_2*ims_in[:,1] + a_3*imd_in[:,1]) + B*(b_1*np.gradient(impsi_a, t_a)[2:] - b_2*impsi_a[2:]) - C*(c_1*np.gradient(impsi_b, t_b)[2:] - c_2*impsi_b[2:])
+                extrapolated_psi_data = A*(a_1*psi[:,1] - a_2*news[:,1] + a_3*strain[:,1]) + B*(b_1*dt_psi_a[:,1] - b_2*psi_a[:,1]) - C*(c_1*dt_psi_b[:,1] - c_2*psi_b[:,1])
 
+                extrapolated_psi = np.column_stack((psi[:,0], extrapolated_psi_data.real, extrapolated_psi_data.imag))
 
-                f0 = getCutoffFrequencyFromTwoPuncturesBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
-                length = len(ans)
-                some_zeros = np.zeros(length, dtype = np.complex_)
-                mp_psi4 = np.column_stack((t[:-2], ans, some_zeros))
-                immp_psi4 = np.column_stack((t[:-2], imans, some_zeros))
+                extrapolated_strain = psi4ToStrain(extrapolated_psi, f0)
 
-                f1 = psi4ToStrain(mp_psi4, f0)
-                imf1 = psi4ToStrain(immp_psi4, f0)
-
-                f3_cmp = f1 + imf1*1j
-                # f3_cmp = f2 + imf2*1j
-                imf3 = f3_cmp.imag
-                f3 = f3_cmp.real
-            
-                complex_psi = f3 + 1j*imf3
-
-                extrapolated_strains.append(np.column_stack((t[4:] , complex_psi.real[:-2] , complex_psi.imag[:-2])))
+                extrapolated_strains.append(np.column_stack(
+                  (ar[:,0], extrapolated_strain[:,1].real,
+                   extrapolated_strain[:,1].imag)))
     return extrapolated_strains
 
 
