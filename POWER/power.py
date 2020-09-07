@@ -635,62 +635,63 @@ def eq_29(sim_path, radii_list, modes):
     
 ### argparse machinery:
 
-def dir_path(string):
-    if os.path.isdir(string):
-        return string
-    else:
-        print("Not a directory: %s" %(string))
-        # raise NotADirectoryError(string)
+if __name__ == "__main__":
+    def dir_path(string):
+        if os.path.isdir(string):
+            return string
+        else:
+            print("Not a directory: %s" %(string))
+            # raise NotADirectoryError(string)
 
-parser = argparse.ArgumentParser(description='Choose extrapolation method')
-parser.add_argument("method" , choices=["POWER" , "Nakano"] , help="Extrapolation method to be used here")
-parser.add_argument('-r', "--radii" , type=int , help="For POWER method; Number of radii to be used", default=7)
-parser.add_argument('-m' , "--modes" , type=str , help="For Nakano method; modes to use, l,m. Leave blank to extrapolate over all available modes")
-parser.add_argument("path" , type=dir_path , help="Simulation to be used here")
-args = parser.parse_args()
+    parser = argparse.ArgumentParser(description='Choose extrapolation method')
+    parser.add_argument("method" , choices=["POWER" , "Nakano"] , help="Extrapolation method to be used here")
+    parser.add_argument('-r', "--radii" , type=int , help="For POWER method; Number of radii to be used", default=7)
+    parser.add_argument('-m' , "--modes" , type=str , help="For Nakano method; modes to use, l,m. Leave blank to extrapolate over all available modes")
+    parser.add_argument("path" , type=dir_path , help="Simulation to be used here")
+    args = parser.parse_args()
 
-if args.method == "POWER":        
-    print("Extrapolating with POWER method...")
-    all_radii, all_modes = getModesInFile(args.path)
-    radii = all_radii[0:args.radii]
-    modes = all_modes
+    if args.method == "POWER":
+        print("Extrapolating with POWER method...")
+        all_radii, all_modes = getModesInFile(args.path)
+        radii = all_radii[0:args.radii]
+        modes = all_modes
 
-    strains = POWER(args.path, radii, modes)
+        strains = POWER(args.path, radii, modes)
 
-    #Create data directories
-    sim = os.path.split(args.path)[-1]
-    main_directory = "Extrapolated_Strain"
-    sim_dir = main_directory + "/" + sim
-    if not os.path.exists(main_directory):
-            os.makedirs(main_directory)
-    if not os.path.exists(sim_dir):
-            os.makedirs(sim_dir)
+        #Create data directories
+        sim = os.path.split(args.path)[-1]
+        main_directory = "Extrapolated_Strain"
+        sim_dir = main_directory + "/" + sim
+        if not os.path.exists(main_directory):
+                os.makedirs(main_directory)
+        if not os.path.exists(sim_dir):
+                os.makedirs(sim_dir)
 
-    for i, (el,em) in enumerate(modes):
-        np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l"+str(el)+"_m"+str(em)+".dat", strains[i])
+        for i, (el,em) in enumerate(modes):
+            np.savetxt("./Extrapolated_Strain/"+sim+"/"+sim+"_radially_extrapolated_strain_l"+str(el)+"_m"+str(em)+".dat", strains[i])
 
-    
-    
 
-elif args.method == "Nakano":
-    print("Extrapolating with Nakano method...")
-    all_radii, all_modes = getModesInFile(args.path)
-    radii = all_radii[0:args.radii]
-    modes = [(0, 0), (1, 0), (1, 1), (2, -1), (2, 0), (2, 1), (2, 2), (3, -2), (3, -1), (3, 0), (3, 1), (3, 2), (3, 3)]
 
-    strains = eq_29(args.path, radii, modes)
 
-    #Create data directories
-    sim = os.path.split(args.path)[-1]
-    main_directory = "Extrapolated_Strain(Nakano_Kerr)"
-    sim_dir = main_directory + "/" + sim
-    if not os.path.exists(main_directory):
-            os.makedirs(main_directory)
-    if not os.path.exists(sim_dir):
-            os.makedirs(sim_dir)
+    elif args.method == "Nakano":
+        print("Extrapolating with Nakano method...")
+        all_radii, all_modes = getModesInFile(args.path)
+        radii = all_radii[0:args.radii]
+        modes = [(0, 0), (1, 0), (1, 1), (2, -1), (2, 0), (2, 1), (2, 2), (3, -2), (3, -1), (3, 0), (3, 1), (3, 2), (3, 3)]
 
-    strain = iter(strains)
-    for (el,em) in modes:
-        for r in radii:
-            fn = "%s_f2_l%d_m%d_r%.2f_Looped.dat" % (sim, el, em, r)
-            np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+fn, next(strain))
+        strains = eq_29(args.path, radii, modes)
+
+        #Create data directories
+        sim = os.path.split(args.path)[-1]
+        main_directory = "Extrapolated_Strain(Nakano_Kerr)"
+        sim_dir = main_directory + "/" + sim
+        if not os.path.exists(main_directory):
+                os.makedirs(main_directory)
+        if not os.path.exists(sim_dir):
+                os.makedirs(sim_dir)
+
+        strain = iter(strains)
+        for (el,em) in modes:
+            for r in radii:
+                fn = "%s_f2_l%d_m%d_r%.2f_Looped.dat" % (sim, el, em, r)
+                np.savetxt("./Extrapolated_Strain(Nakano_Kerr)/"+sim+"/"+fn, next(strain))
