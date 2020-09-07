@@ -544,14 +544,26 @@ def eq_29(sim_path, radii_list, modes):
                 mode = (int(m.group(1)), int(m.group(2)))
                 dsets[(radius, mode)] = dset
 
+    # M and ADMMass are not identical since "M" is the mass of the final black
+    # hole while ADMMass is the total mas of the system. Using both is somewhat
+    # inconsistent
     a, M = getFinalSpinFromQLM(sim_path)
     f0 = getCutoffFrequencyFromTwoPuncturesBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
+    ADMMass = getADMMassFromTwoPunctureBBH(main_dir+"/output-0000/%s/TwoPunctures.bbh" % (sim))
 
     extrapolated_strains = {}
     for radius in radii_list:
         extrapolated_strains[radius] = {}
         for (el,em) in modes:
             ar = loadHDF5Series(simdirs+"mp_psi4.h5" , dsets[(radius, (el,em))])   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
+
+            # retardate time by estimated travel time to each detector,
+            # convert from psi4 to r*psi4 to account for initial 1/r falloff
+            # RH: it might be even better (though harder to define) to
+            # get a retardating time by looking at the time of the
+            # maximum (found as an optimization over an interpolating
+            # function, not argmax)
+            ar[:, 0] -= RadialToTortoise(radius, ADMMass)
 
             psi = np.column_stack((ar[:,0], ar[:,1] + 1j * ar[:,2]))
             # 1st column of ar, time data points
