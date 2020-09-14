@@ -520,8 +520,8 @@ def POWER(sim_path, radii, modes):
         for i in range(1, amp_extrapolation_order+1):
             A_amp = np.column_stack((A_amp, np.power(radii, -1*i)))
 
-        b_phase = np.empty_like(radii, shape=(len(radii), len(t)))
-        b_amp = np.empty_like(radii, shape=(len(radii), len(t)))
+        b_phase = np.empty(dtype=radii.dtype, shape=(len(radii), len(t)))
+        b_amp = np.empty(dtype=radii.dtype, shape=(len(radii), len(t)))
         for j in range(len(radii)):
             b_phase[j] = phase[j][:, 1]
             b_amp[j] = amp[j][:, 1]
