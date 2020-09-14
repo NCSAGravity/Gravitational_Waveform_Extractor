@@ -335,7 +335,7 @@ def getModesInFile(sim_path):
     return = radii, modes
     """
 
-    fn = sorted(glob.glob(os.path.join(sim_path,"output-????", "*", "mp_[Pp]si4.h5"))[0]
+    fn = sorted(glob.glob(os.path.join(sim_path,"output-????", "*", "mp_[Pp]si4.h5")))[0]
     with h5py.File(fn, "r") as fh:
         radii = set()
         modes = set()
@@ -382,7 +382,7 @@ def POWER(sim_path, radii, modes):
     sim = os.path.split(sim_path)[-1]
 
     simdirs = os.path.join(main_dir, "output-????", sim)
-    meta_name = glob.glob(os.path.join(main_dir, "output-0000", "*", "TwoPunctures.bbh")[0]
+    meta_name = glob.glob(os.path.join(main_dir, "output-0000", "*", "TwoPunctures.bbh"))[0]
     f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
     #Get simulation total mass
     ADMMass = getADMMassFromTwoPunctureBBH(meta_name)
@@ -390,7 +390,7 @@ def POWER(sim_path, radii, modes):
     # get translation table from (mode, radius) to dataset name
     # TODO: this ought to be handled differently
     dsets = {}
-    fn = sorted(glob.glob(os.path.join(sim_path, "output-????", "*", "mp_[Pp]si4.h5"))[0]
+    fn = sorted(glob.glob(os.path.join(sim_path, "output-????", "*", "mp_[Pp]si4.h5")))[0]
     with h5py.File(fn, "r") as fh:
         for dset in fh:
             # TODO: extend Multipole to save the radii as attributes and/or
@@ -574,7 +574,7 @@ def NakanoKerr(sim_path, radii_list, modes):
     # get translation table from (mode, radius) to dataset name
     # TODO: this ought to be handled differently
     dsets = {}
-    fn = sorted(glob.glob(os.path.join(sim_path, "output-????", "*", "mp_[Pp]si4.h5"))[0]
+    fn = sorted(glob.glob(os.path.join(sim_path, "output-????", "*", "mp_[Pp]si4.h5")))[0]
     with h5py.File(fn, "r") as fh:
         for dset in fh:
             # TODO: extend Multipole to save the radii as attributes and/or
@@ -589,7 +589,7 @@ def NakanoKerr(sim_path, radii_list, modes):
     # hole while ADMMass is the total mas of the system. Using both is somewhat
     # inconsistent
     a, M = getFinalSpinFromQLM(sim_path)
-    meta_name = glob.glob(os.path.join(main_dir, "output-0000", "*". "TwoPunctures.bbh")[0]
+    meta_name = glob.glob(os.path.join(main_dir, "output-0000", "*", "TwoPunctures.bbh"))[0]
     f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
     ADMMass = getADMMassFromTwoPunctureBBH(meta_name)
 
