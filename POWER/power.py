@@ -453,7 +453,7 @@ def POWER(sim_path, radii, modes):
             hplus = h.real
             hcross = h.imag
             newhTable = np.column_stack((time, hplus, hcross))
-            strain.append(finalhTable)
+            strain.append(newhTable)
 
             #-------------------------------------------------------------------
             # Analysis of Strain
