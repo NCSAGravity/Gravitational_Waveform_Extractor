@@ -726,4 +726,4 @@ if __name__ == "__main__":
                 else:
                     fn = "%s_extrapolated_strain_l%d_m%d.dat" % (sim_name, el, em)
             path = os.path.join(output_directory, fn)
-            np.savetxt(path, strains[radius][(el,em)])
+            np.savetxt(path, strains[radius][(el,em)], header="1:time 2:Re(h) 3:Im(h)")
