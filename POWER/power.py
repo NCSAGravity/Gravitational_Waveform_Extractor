@@ -683,9 +683,54 @@ if __name__ == "__main__":
             # Python version issue: Python2 does not have NotADirectoryError
             raise ValueError("Not a directory: %s" %(string))
 
+    def set_of_ints(string):
+        if(string == "all"):
+            return [(0, None, 1)]
+
+        m = re.match(r"^\[(.*)\]$", string)
+        if(m):
+          radii = []
+          for r in m.group(1).strip().split(","):
+              if ":" in r:
+                  bounds = r.strip().split(":")
+                  nbounds = len(bounds)
+                  if nbounds == 1:
+                      lbound = "0"
+                      ubound = bounds[0]
+                      stride = "1"
+                  elif nbounds == 2:
+                      lbound = bounds[0]
+                      ubound = bounds[1]
+                      stride = "1"
+                  elif nbounds == 3:
+                      lbound = bounds[0]
+                      ubound = bounds[1]
+                      stride = bounds[2]
+                  else:
+                      raise ValueError("Interval %s contains unexpected number of ':'" % r)
+                  if(lbound.strip()):
+                      lbound = int(lbound)
+                  else:
+                      lbound = None
+                  if(ubound.strip()):
+                      ubound = int(ubound)
+                  else:
+                      ubound = None
+                  if(stride.strip()):
+                      stride = int(stride)
+                  else:
+                      stride = None
+                  radii.append((lbound, ubound, stride))
+              else:
+                  radii.append((int(r), int(r)+1, 1))
+          return radii
+
+        # backwards compatible: use N innermost detectors
+        return [(int(string), int(string+1), 1)]
+
     parser = argparse.ArgumentParser(description='Choose extrapolation method')
     parser.add_argument("method" , choices=["POWER" , "Nakano"] , help="Extrapolation method to be used here")
-    parser.add_argument('-r', "--radii" , type=int , help="Number of radii to be used, set to -1 to use all.", default=7)
+    parser.add_argument('-r', "--radii" , type=set_of_ints , help="Set of detectors to be used, set to 'all' to use all, .", default=[(0,7,1)])
     parser.add_argument('-m', "--modes" , type=str , help="Modes to use, [(l1,m1),(l2,m2),...]. Leave blank to extrapolate over all available modes")
     parser.add_argument('-d', "--output-directory", type=str, help="Directory to write extrapolated waveforms to.", default=os.path.join("Extrapolated_Strain", "{sim_name}"))
     parser.add_argument('-o', "--output-file", type=str, help="File to write extrapolated waveforms to.", default=None)
@@ -693,7 +738,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     all_radii, all_modes = getModesInFile(args.path)
-    radii = all_radii[0:(args.radii if args.radii != -1 else None)]
+    radii = []
+    for interval in args.radii:
+        # check that interval is included in array
+        if(interval[0] is not None and (interval[0] >= len(all_radii) or interval[0] < -len(all_radii))):
+            raise IndexError("Lower bound %d not an allowed bound for %s" % (interval[0], all_radii))
+        if(interval[1] is not None and (interval[1] > len(all_radii) or interval[1] < -len(all_radii)-1)):
+            raise IndexError("Upper bound %d not an allowed bound for %s" % (interval[1], all_radii))
+        radii.extend(all_radii[slice(interval[0], interval[1], interval[2])])
     if args.modes:
         modes = eval(args.modes)
     else:
