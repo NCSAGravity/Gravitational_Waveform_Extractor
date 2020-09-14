@@ -708,7 +708,7 @@ if __name__ == "__main__":
 
     elif args.method == "Nakano":
         print("Extrapolating with Nakano method...")
-        strains = NakanaKerr(args.path, radii, modes)
+        strains = NakanoKerr(args.path, radii, modes)
 
     #Create data directories
     # Python version issue: Python2 uses OSError for existing directories,
