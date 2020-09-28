@@ -728,10 +728,17 @@ if __name__ == "__main__":
         # backwards compatible: use N innermost detectors
         return [(int(string), int(string+1), 1)]
 
+    def modes_list(string):
+        # rough check if it matches [(l1,m1),(l2,m2),...] ie a Python list of 2-tuples
+        m = re.match(r'\s*\[\s*\([0-9]+\s*,\s*[-+]?\s*[0-9]+\s*\)(\s*,\s*\([0-9]+\s*,\s*[-+]?\s*[0-9]+\s*\))*\]', string)
+        if not m:
+            raise ValueError("Not a list of 2-tuples: %s" %(string))
+        return eval(string)
+
     parser = argparse.ArgumentParser(description='Choose extrapolation method')
     parser.add_argument("method" , choices=["POWER" , "Nakano"] , help="Extrapolation method to be used here")
     parser.add_argument('-r', "--radii" , type=set_of_ints , help="Set of detectors to be used, set to 'all' to use all, .", default=[(0,7,1)])
-    parser.add_argument('-m', "--modes" , type=str , help="Modes to use, [(l1,m1),(l2,m2),...]. Leave blank to extrapolate over all available modes")
+    parser.add_argument('-m', "--modes" , type=list_of_modes , help="Modes to use, [(l1,m1),(l2,m2),...]. Leave blank to extrapolate over all available modes")
     parser.add_argument('-d', "--output-directory", type=str, help="Directory to write extrapolated waveforms to.", default=os.path.join("Extrapolated_Strain", "{sim_name}"))
     parser.add_argument('-o', "--output-file", type=str, help="File to write extrapolated waveforms to.", default=None)
     parser.add_argument("path" , type=dir_path , help="Simulation to be used here")
@@ -747,7 +754,7 @@ if __name__ == "__main__":
             raise IndexError("Upper bound %d not an allowed bound for %s" % (interval[1], all_radii))
         radii.extend(all_radii[slice(interval[0], interval[1], interval[2])])
     if args.modes:
-        modes = eval(args.modes)
+        modes = args.modes
     else:
         modes = all_modes
 
