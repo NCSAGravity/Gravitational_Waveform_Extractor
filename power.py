@@ -378,7 +378,7 @@ def POWER(sim_path, radii, modes):
     first level is indexed only by None then by the (el,em) mode, ie.
     strains[None][(el,em)] is a numpy array.
     """
-    simdirs = os.path.join(sim_dir, "output-????", "*")
+    simdirs = os.path.join(sim_path, "output-????", "*")
 
     meta_name = glob.glob(os.path.join(simdirs, "TwoPunctures.bbh"))[0]
     f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
@@ -388,7 +388,7 @@ def POWER(sim_path, radii, modes):
     # get translation table from (mode, radius) to dataset name
     # TODO: this ought to be handled differently
     dsets = {}
-    fn = glob.glob(os.path.join(simmdirs, "mp_[Pp]si4.h5"))[0]
+    fn = glob.glob(os.path.join(simdirs, "mp_[Pp]si4.h5"))[0]
     with h5py.File(fn, "r") as fh:
         for dset in fh:
             # TODO: extend Multipole to save the radii as attributes and/or
