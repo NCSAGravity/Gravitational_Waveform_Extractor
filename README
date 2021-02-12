@@ -1,9 +1,10 @@
 Python Open-source Waveform ExtractoR: An open source, python package to monitor and post-process numerical relativity simulations
 Author(s)    : Daniel Johnson <dsjohns2@illinois.edu>
+               Brockton Brendal <brendal4@illinois.edu>
                E. A. Huerta <elihu@illinois.edu>
                Roland Haas <rhaas@ncsa.illinois.edu>
-Copyright    : (c) 2017 The Board of Trustees of the University of Illinois
-Maintainer(s): Daniel Johnson, E. A. Huerta, Roland Haas
+Copyright    : (c) 2017 - 2021 The Board of Trustees of the University of Illinois
+Maintainer(s): E. A. Huerta, Roland Haas
 License      : NCSA
 
 1. Purpose
