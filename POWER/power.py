@@ -335,7 +335,7 @@ def getModesInFile(sim_path):
     return = radii, modes
     """
 
-    fn = sorted(glob.glob(os.path.join(sim_path,"output-????", "*", "mp_[Pp]si4.h5")))[0]
+    fn = glob.glob(os.path.join(sim_path,"output-????", "*", "mp_[Pp]si4.h5"))[0]
     with h5py.File(fn, "r") as fh:
         radii = set()
         modes = set()
@@ -378,11 +378,9 @@ def POWER(sim_path, radii, modes):
     first level is indexed only by None then by the (el,em) mode, ie.
     strains[None][(el,em)] is a numpy array.
     """
-    main_dir = sim_path
-    sim = os.path.split(sim_path)[-1]
+    simdirs = os.path.join(sim_dir, "output-????", "*")
 
-    simdirs = os.path.join(main_dir, "output-????", sim)
-    meta_name = glob.glob(os.path.join(main_dir, "output-0000", "*", "TwoPunctures.bbh"))[0]
+    meta_name = glob.glob(os.path.join(simdirs, "TwoPunctures.bbh"))[0]
     f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
     #Get simulation total mass
     ADMMass = getADMMassFromTwoPunctureBBH(meta_name)
@@ -390,7 +388,7 @@ def POWER(sim_path, radii, modes):
     # get translation table from (mode, radius) to dataset name
     # TODO: this ought to be handled differently
     dsets = {}
-    fn = sorted(glob.glob(os.path.join(sim_path, "output-????", "*", "mp_[Pp]si4.h5")))[0]
+    fn = glob.glob(os.path.join(simmdirs, "mp_[Pp]si4.h5"))[0]
     with h5py.File(fn, "r") as fh:
         for dset in fh:
             # TODO: extend Multipole to save the radii as attributes and/or
@@ -416,7 +414,7 @@ def POWER(sim_path, radii, modes):
             #------------------------------------------------
             radius = radii[i]
             psi4dsetname = dsets[(radius, (el,em))]
-            mp_psi4 = loadHDF5Series(os.path.join(simdirs, "mp_psi4.h5"), psi4dsetname)
+            mp_psi4 = loadHDF5Series(os.path.join(simdirs, "mp_[Pp]si4.h5"), psi4dsetname)
             mp_psi4_vars.append(mp_psi4)
 
 
@@ -567,14 +565,12 @@ def NakanoKerr(sim_path, radii_list, modes):
     numpy array.
     """
 
-    main_dir = sim_path
-    sim = os.path.split(sim_path)[-1]
-    simdirs = os.path.join(sim_path, "output-????", sim)
+    simdirs = os.path.join(sim_path, "output-????", "*")
 
     # get translation table from (mode, radius) to dataset name
     # TODO: this ought to be handled differently
     dsets = {}
-    fn = sorted(glob.glob(os.path.join(sim_path, "output-????", "*", "mp_[Pp]si4.h5")))[0]
+    fn = glob.glob(os.path.join(simdirs, "mp_[Pp]si4.h5"))[0]
     with h5py.File(fn, "r") as fh:
         for dset in fh:
             # TODO: extend Multipole to save the radii as attributes and/or
@@ -589,7 +585,7 @@ def NakanoKerr(sim_path, radii_list, modes):
     # hole while ADMMass is the total mas of the system. Using both is somewhat
     # inconsistent
     a, M = getFinalSpinFromQLM(sim_path)
-    meta_name = glob.glob(os.path.join(main_dir, "output-0000", "*", "TwoPunctures.bbh"))[0]
+    meta_name = glob.glob(os.path.join(simdirs, "TwoPunctures.bbh"))[0]
     f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
     ADMMass = getADMMassFromTwoPunctureBBH(meta_name)
 
@@ -597,7 +593,7 @@ def NakanoKerr(sim_path, radii_list, modes):
     for radius in radii_list:
         extrapolated_strains[radius] = {}
         for (el,em) in modes:
-            ar = loadHDF5Series(os.path.join(simdirs, "mp_psi4.h5") , dsets[(radius, (el,em))])   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
+            ar = loadHDF5Series(os.path.join(simdirs, "mp_[Pp]si4.h5") , dsets[(radius, (el,em))])   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
 
             # retardate time by estimated travel time to each detector,
             # convert from psi4 to r*psi4 to account for initial 1/r falloff
@@ -636,7 +632,7 @@ def NakanoKerr(sim_path, radii_list, modes):
             else:
                 # TODO: throw an error when a physical mode is not present in the file?
                 modes_a = dsets[(radius, (el+1,em))]         # "top" modes
-                ar_a = loadHDF5Series(os.path.join(simdirs, 'mp_psi4.h5'), modes_a)
+                ar_a = loadHDF5Series(os.path.join(simdirs, 'mp_[Pp]si4.h5'), modes_a)
                 psi_a = np.column_stack((ar_a[:,0], ar_a[:,1] + 1j * ar_a[:,2]))
                 dt_psi_a = np.column_stack((psi_a[:,0], np.gradient(psi_a[:,1], psi_a[:,0])))
                 B = 2.j*a/(el+1.)**2*np.sqrt((el+3.)*(el-1)*(el+em+1.)*(el-em+1.)/((2.*el+1.)*(2.*el+3.)))
@@ -651,7 +647,7 @@ def NakanoKerr(sim_path, radii_list, modes):
                 c_2 = 0.
             else:
                 modes_b = dsets[(radius, (el-1, em))]    # "bottom" modes
-                ar_b = loadHDF5Series(os.path.join(simdirs, 'mp_psi4.h5'), modes_b)
+                ar_b = loadHDF5Series(os.path.join(simdirs, 'mp_[Pp]si4.h5'), modes_b)
                 psi_b = np.column_stack((ar_b[:,0], ar_b[:,1] + 1j * ar_b[:,2]))
                 dt_psi_b = np.column_stack((psi_b[:,0], np.gradient(psi_b[:,1], psi_b[:,0])))
                 C = 2.j*a/el**2*np.sqrt((el+2.)*(el-2.)*(el+em)*(el-em)/((2.*el-1.)*(2.*el+1.)))
