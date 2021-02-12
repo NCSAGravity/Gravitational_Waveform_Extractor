@@ -716,7 +716,7 @@ if __name__ == "__main__":
         # backwards compatible: use N innermost detectors
         return [(int(string), int(string+1), 1)]
 
-    def modes_list(string):
+    def list_of_modes(string):
         # rough check if it matches [(l1,m1),(l2,m2),...] ie a Python list of 2-tuples
         m = re.match(r'\s*\[\s*\([0-9]+\s*,\s*[-+]?\s*[0-9]+\s*\)(\s*,\s*\([0-9]+\s*,\s*[-+]?\s*[0-9]+\s*\))*\]', string)
         if not m:
