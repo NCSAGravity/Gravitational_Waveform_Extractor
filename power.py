@@ -516,10 +516,10 @@ def POWER(sim_path, radii, modes):
             b_phase[j] = phase[j][:, 1]
             b_amp[j] = amp[j][:, 1]
 
-        x_phase = np.linalg.lstsq(A_phase, b_phase)[0]
+        x_phase = np.linalg.lstsq(A_phase, b_phase, rcond=-1)[0]
         radially_extrapolated_phase = x_phase[0]
 
-        x_amp = np.linalg.lstsq(A_amp, b_amp)[0]
+        x_amp = np.linalg.lstsq(A_amp, b_amp, rcond=-1)[0]
         radially_extrapolated_amp = x_amp[0]
 
         radially_extrapolated_h_plus = radially_extrapolated_amp * np.cos(radially_extrapolated_phase)
