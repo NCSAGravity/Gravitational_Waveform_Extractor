@@ -724,7 +724,7 @@ if __name__ == "__main__":
         return eval(string)
 
     parser = argparse.ArgumentParser(description='Choose extrapolation method')
-    parser.add_argument("method" , choices=["POWER" , "Nakano"] , help="Extrapolation method to be used here")
+    parser.add_argument(      "--method", choices=["POWER" , "Nakano"] , help="Extrapolation method to be used here", default="POWER")
     parser.add_argument('-r', "--radii" , type=set_of_ints , help="Set of detectors to be used, set to 'all' to use all, .", default=[(0,7,1)])
     parser.add_argument('-m', "--modes" , type=list_of_modes , help="Modes to use, [(l1,m1),(l2,m2),...]. Leave blank to extrapolate over all available modes")
     parser.add_argument('-d', "--output-directory", type=str, help="Directory to write extrapolated waveforms to.", default=os.path.join("Extrapolated_Strain", "{sim_name}"))
