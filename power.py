@@ -725,11 +725,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Choose extrapolation method')
     parser.add_argument(      "--method", choices=["POWER" , "Nakano"] , help="Extrapolation method to be used here", default="POWER")
-    parser.add_argument('-r', "--radii" , type=set_of_ints , help="Set of detectors to be used, set to 'all' to use all, .", default=[(0,7,1)])
+    parser.add_argument('-r', "--radii" , type=set_of_ints , help="Set of detectors to be used, set to 'all' to use all, or an integer to use the innermost few radii, or a list of slices [start11:end1:step1,start2:end2:step2,...].", default=[(0,7,1)])
     parser.add_argument('-m', "--modes" , type=list_of_modes , help="Modes to use, [(l1,m1),(l2,m2),...]. Leave blank to extrapolate over all available modes")
     parser.add_argument('-d', "--output-directory", type=str, help="Directory to write extrapolated waveforms to.", default=os.path.join("Extrapolated_Strain", "{sim_name}"))
     parser.add_argument('-o', "--output-file", type=str, help="File to write extrapolated waveforms to.", default=None)
-    parser.add_argument("path" , type=dir_path , help="Simulation to be used here")
+    parser.add_argument("path" , type=dir_path , help="Top level directory of simulation to process")
     args = parser.parse_args()
 
     all_radii, all_modes = getModesInFile(args.path)
