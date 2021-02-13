@@ -714,7 +714,7 @@ if __name__ == "__main__":
           return radii
 
         # backwards compatible: use N innermost detectors
-        return [(int(string), int(string+1), 1)]
+        return [(0, int(string), 1)]
 
     def list_of_modes(string):
         # rough check if it matches [(l1,m1),(l2,m2),...] ie a Python list of 2-tuples
