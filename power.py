@@ -368,7 +368,7 @@ class psi4ModesHDF5(psi4Modes):
         super(psi4ModesHDF5, self).__init__(sim_path)
         nameglob = os.path.join(sim_path, "output-????", "*", "mp_[Pp]si4.h5")
         fns = glob.glob(nameglob)
-        if True or not fns:
+        if not fns:
             raise IOError(errno.ENOENT, os.strerror(errno.ENOENT), nameglob)
         with h5py.File(fns[0], "r") as fh:
             radii = set()
@@ -604,7 +604,7 @@ def POWER(sim_path, radii, modes):
 # Nakano Method
 # -----------------------------------------------------------------------------
 
-def NakanoKerr(sim_path, radii_list, modes):
+def NakanoKerr(sim_path, radii, modes):
     """ Compute gravitational waveform at null infinity using the "Kerr"
     variant of the perturbative method developed  by Nakano et al. in
     PhysRevD.91.104022
@@ -614,7 +614,7 @@ def NakanoKerr(sim_path, radii_list, modes):
     ie. contain directories output-???? then one more subdirectory then the
     actual data files mp_[Pp]si4.h5 written by the Multipole thorn.
 
-    radii_list is list of floating point detector radii to use as starting
+    radii is list of floating point detector radii to use as starting
     points for the perturbative evolution.
 
     modes is a Python list of tuples (el,em) for all the modes that should be
@@ -630,19 +630,7 @@ def NakanoKerr(sim_path, radii_list, modes):
 
     simdirs = os.path.join(sim_path, "output-????", "*")
 
-    # get translation table from (mode, radius) to dataset name
-    # TODO: this ought to be handled differently
-    dsets = {}
-    fn = glob.glob(os.path.join(simdirs, "mp_[Pp]si4.h5"))[0]
-    with h5py.File(fn, "r") as fh:
-        for dset in fh:
-            # TODO: extend Multipole to save the radii as attributes and/or
-            # use a group structure in the hdf5 file
-            m = re.match(r'l(\d*)_m(-?\d*)_r(\d*\.\d)', dset)
-            if m:
-                radius = float(m.group(3))
-                mode = (int(m.group(1)), int(m.group(2)))
-                dsets[(radius, mode)] = dset
+    psi4modes = getPsi4ModesInSim(sim_path)
 
     # M and ADMMass are not identical since "M" is the mass of the final black
     # hole while ADMMass is the total mas of the system. Using both is somewhat
@@ -653,10 +641,10 @@ def NakanoKerr(sim_path, radii_list, modes):
     ADMMass = getADMMassFromTwoPunctureBBH(meta_name)
 
     extrapolated_strains = {}
-    for radius in radii_list:
+    for radius in radii:
         extrapolated_strains[radius] = {}
         for (el,em) in modes:
-            ar = loadHDF5Series(os.path.join(simdirs, "mp_[Pp]si4.h5") , dsets[(radius, (el,em))])   # loads HDF5 Series from file mp_psi4.h5, specifically the "l%d_m%d_r100.00" ones ... let's loop this over all radii
+            ar = psi4modes.getData(radius, (el,em))
 
             # retardate time by estimated travel time to each detector,
             # convert from psi4 to r*psi4 to account for initial 1/r falloff
@@ -686,36 +674,29 @@ def NakanoKerr(sim_path, radii_list, modes):
                 # Note: third term is negative for el==1
                 a_3 = (el-1.)*(el+2.)*(el**2 + el - 4.)/(8*radius*radius)
 
-            if el < 1 or (radius, (el+1,em)) not in dsets:
+            if el < 1:
                 psi_a = np.zeros_like(psi)             # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
                 dt_psi_a = np.zeros_like(psi)          # ...fill psi_a and impsi_a arrays with zeros (mode is unphysical)
                 B = 0.
-                b_1 = 0.
-                b_2 = 0.
             else:
-                # TODO: throw an error when a physical mode is not present in the file?
-                modes_a = dsets[(radius, (el+1,em))]         # "top" modes
-                ar_a = loadHDF5Series(os.path.join(simdirs, 'mp_[Pp]si4.h5'), modes_a)
+                ar_a = psi4modes.getData(radius, (el+1,em))
                 psi_a = np.column_stack((ar_a[:,0], ar_a[:,1] + 1j * ar_a[:,2]))
                 dt_psi_a = np.column_stack((psi_a[:,0], np.gradient(psi_a[:,1], psi_a[:,0])))
                 B = 2.j*a/(el+1.)**2*np.sqrt((el+3.)*(el-1)*(el+em+1.)*(el-em+1.)/((2.*el+1.)*(2.*el+3.)))
-                b_1 = 1.
-                b_2 = el*(el+3.)/radius
+            b_1 = 1.
+            b_2 = el*(el+3.)/radius
 
             if abs(em) > el-1 or el < 2:               # if em is greater than the bottom mode...
                 psi_b = np.zeros_like(psi)             # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
                 dt_psi_b = np.zeros_like(psi)          # ...fill psi_b and impsi_b arrays with zeros (mode is unphysical)
                 C = 0.
-                c_1 = 0.
-                c_2 = 0.
             else:
-                modes_b = dsets[(radius, (el-1, em))]    # "bottom" modes
-                ar_b = loadHDF5Series(os.path.join(simdirs, 'mp_[Pp]si4.h5'), modes_b)
+                ar_b = psi4modes.getData(radius, (el-1, em))
                 psi_b = np.column_stack((ar_b[:,0], ar_b[:,1] + 1j * ar_b[:,2]))
                 dt_psi_b = np.column_stack((psi_b[:,0], np.gradient(psi_b[:,1], psi_b[:,0])))
                 C = 2.j*a/el**2*np.sqrt((el+2.)*(el-2.)*(el+em)*(el-em)/((2.*el-1.)*(2.*el+1.)))
-                c_1 = 1.
-                c_2 = (el-2.)*(el+1.)/radius
+            c_1 = 1.
+            c_2 = (el-2.)*(el+1.)/radius
 
             extrapolated_psi_data = A*(a_1*psi[:,1] - a_2*radius*news[:,1] + a_3*radius*strain[:,1]) + B*(b_1*radius*dt_psi_a[:,1] - b_2*radius*psi_a[:,1]) - C*(c_1*radius*dt_psi_b[:,1] - c_2*radius*psi_b[:,1])
 
