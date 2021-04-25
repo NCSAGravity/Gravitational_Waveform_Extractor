@@ -42,6 +42,7 @@
 
 import numpy as np
 import glob
+import errno
 import os
 import h5py
 import re
@@ -90,8 +91,22 @@ def loadHDF5Series(nameglob, series):
     series = HDF5 dataset name of dataset to load from files"""
     dsets = list()
     for fn in sorted(glob.glob(nameglob)):
+        # cannot use "with" syntax since h5py defaults to hard-close of HDF5
+        # files, which interferes with storng just a handle to the dset,
+        # instead let h5py close the file once the last handle goes out of
+        # scope ("weak" closing)
         fh = h5py.File(fn, "r")
         dsets.append(fh[series])
+    return joinDsets(dsets)
+
+def loadASCIISeries(nameglob):
+    """load ASCII timeseries data and concatenate the content of multiple files
+
+    nameglob = a shell glob that matches all files to be loaded,
+    files are sorted alphabetically"""
+    dsets = list()
+    for fn in sorted(glob.glob(nameglob)):
+        dsets.append(np.loadtxt(fn,ndmin=2))
     return joinDsets(dsets)
 
 #Convert radial to tortoise coordinates
@@ -327,30 +342,99 @@ def getCutoffFrequencyFromTwoPuncturesBBH(meta_filename):
     omCutoff = 0.75 * omGWPN
     return omCutoff
 
-def getModesInFile(sim_path):
+class psi4Modes: # base class for HDF5 and ASCII modes
+    def __init__(self, sim_path):
+        self.sim_path = sim_path
+        self.modes = []
+        self.radii = []
+        self.mapping = {}
+
+    def getModes(self):
+        return self.modes
+
+    def getRadii(self):
+        return self.radii
+
+    def getData(self, mode, radius):
+        return None
+
+class psi4ModesHDF5(psi4Modes):
     """
-    Find all modes and radii in file.
+    All modes and radii in H5 files in sim_path.
 
     sim_path = path to simulation main directory
-    return = radii, modes
     """
+    def __init__(self, sim_path):
+        super(psi4ModesHDF5, self).__init__(sim_path)
+        nameglob = os.path.join(sim_path, "output-????", "*", "mp_[Pp]si4.h5")
+        fns = glob.glob(nameglob)
+        if True or not fns:
+            raise IOError(errno.ENOENT, os.strerror(errno.ENOENT), nameglob)
+        with h5py.File(fns[0], "r") as fh:
+            radii = set()
+            modes = set()
+            for dsetname in fh:
+                # TODO: extend Multipole to save the radii as attributes and/or
+                # use a group structure in the hdf5 file
+                m = re.match(r'^l(\d*)_m(-?\d*)_r(\d*\.\d*)$', dsetname)
+                if m:
+                    radius = float(m.group(3))
+                    mode = (int(m.group(1)), int(m.group(2)))
+                    radii.add(radius)
+                    modes.add(mode)
+                    self.mapping[(radius, mode)] = dsetname
+        self.radii = sorted(radii)
+        self.modes = sorted(modes)
 
-    fn = glob.glob(os.path.join(sim_path,"output-????", "*", "mp_[Pp]si4.h5"))[0]
-    with h5py.File(fn, "r") as fh:
+    def getData(self, radius, mode):
+        nameglob = os.path.join(self.sim_path, "output-????", "*", "mp_[Pp]si4.h5")
+        return loadHDF5Series(nameglob, self.mapping[(radius, mode)])
+
+class psi4ModesASCII(psi4Modes):
+    """
+    All modes and radii in ASCII files in sim_path.
+
+    sim_path = path to simulation main directory
+    """
+    def __init__(self, sim_path):
+        super(psi4ModesASCII, self).__init__(sim_path)
+        nameglob = os.path.join(sim_path, "output-????", "*", "mp_[Pp]si4_*.asc")
+        fns = glob.glob(nameglob)
+        if not fns:
+            raise IOError(errno.ENOENT, os.strerror(errno.ENOENT), nameglob)
         radii = set()
         modes = set()
-        for dset in fh:
-            # TODO: extend Multipole to save the radii as attributes and/or
-            # use a group structure in the hdf5 file
-            m = re.match(r'l(\d*)_m(-?\d*)_r(\d*\.\d)', dset)
+        for fn in fns:
+            basefn = os.path.basename(fn)
+            m = re.match(r'^mp_[Pp]si4_l(\d*)_m(-?\d*)_r(\d*\.\d*)\.asc$', basefn)
             if m:
                 radius = float(m.group(3))
                 mode = (int(m.group(1)), int(m.group(2)))
-                modes.add(mode)
                 radii.add(radius)
-    modes = sorted(modes)
-    radii = sorted(radii)
-    return radii, modes
+                modes.add(mode)
+                self.mapping[(radius, mode)] = basefn
+        self.radii = sorted(radii)
+        self.modes = sorted(modes)
+
+    def getData(self, radius, mode):
+        nameglob = os.path.join(self.sim_path,"output-????", "*", self.mapping[(radius, mode)])
+        return loadASCIISeries(nameglob)
+
+def getPsi4ModesInSim(sim_path):
+    """
+    Find all psi4 modes and radii in sim_path.
+
+    sim_path = path to simulation main directory
+    """
+
+    try:
+        return psi4ModesHDF5(sim_path)
+    except IOError as e:
+        if e.errno != errno.ENOENT:
+            raise
+
+    return psi4ModesASCII(sim_path)
+
 
 # -----------------------------------------------------------------------------
 # POWER Method
@@ -365,7 +449,7 @@ def POWER(sim_path, radii, modes):
     ie. contain directories output-???? then one more subdirectory then the
     actual data files mp_[Pp]si4.h5 written by the Multipole thorn.
 
-    radii_list is list of floating point detector radii to use in the
+    radii is list of floating point detector radii to use in the
     extrapolation.
 
     modes is a Python list of tuples (el,em) for all the modes that should be
@@ -385,36 +469,23 @@ def POWER(sim_path, radii, modes):
     #Get simulation total mass
     ADMMass = getADMMassFromTwoPunctureBBH(meta_name)
 
-    # get translation table from (mode, radius) to dataset name
-    # TODO: this ought to be handled differently
-    dsets = {}
-    fn = glob.glob(os.path.join(simdirs, "mp_[Pp]si4.h5"))[0]
-    with h5py.File(fn, "r") as fh:
-        for dset in fh:
-            # TODO: extend Multipole to save the radii as attributes and/or
-            # use a group structure in the hdf5 file
-            m = re.match(r'l(\d*)_m(-?\d*)_r(\d*\.\d)', dset)
-            if m:
-                radius = float(m.group(3))
-                mode = (int(m.group(1)), int(m.group(2)))
-                dsets[(radius, mode)] = dset
+    psi4modes = getPsi4ModesInSim(sim_path)
 
     # Get Psi4
     # TODO: should I instead use the innermost radius to have an actual value
     # and even more consistency with NakanoKerr?
     extrapolated_strains = {None: {}}
-    for (el,em) in modes:                      # 25 times through the loop, from (1,1) to (4,4)
+    for (el,em) in modes:
         mp_psi4_vars = []
         strain = []
         phase = []
         amp = []
-        for i in range(len(radii)):      # so 7 times through each mode at each of the 7 radii
+        for i in range(len(radii)):
             #------------------------------------------------
             # Read in HDF5 data
             #------------------------------------------------
             radius = radii[i]
-            psi4dsetname = dsets[(radius, (el,em))]
-            mp_psi4 = loadHDF5Series(os.path.join(simdirs, "mp_[Pp]si4.h5"), psi4dsetname)
+            mp_psi4 = psi4modes.getData(radius, (el,em))
             mp_psi4_vars.append(mp_psi4)
 
 
@@ -732,7 +803,9 @@ if __name__ == "__main__":
     parser.add_argument("path" , type=dir_path , help="Top level directory of simulation to process")
     args = parser.parse_args()
 
-    all_radii, all_modes = getModesInFile(args.path)
+    modes = getPsi4ModesInSim(args.path)
+    all_modes = modes.getModes()
+    all_radii = modes.getRadii()
     radii = []
     for interval in args.radii:
         # check that interval is included in array
