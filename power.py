@@ -732,9 +732,10 @@ def NakanoKerr(sim_path, radii_list, modes):
 # -----------------------------------------------------------------------------
 
 
-### argparse machinery:
+def main():
+    """ main function used to isolate all local variables """
 
-if __name__ == "__main__":
+    # argparse machinery
     def dir_path(string):
         if os.path.isdir(string):
             return string
@@ -847,3 +848,6 @@ if __name__ == "__main__":
                     fn = "%s_extrapolated_strain_l%d_m%d.dat" % (sim_name, el, em)
             path = os.path.join(output_directory, fn)
             np.savetxt(path, strains[radius][(el,em)], header="1:time 2:Re(h) 3:Im(h)")
+
+if __name__ == "__main__":
+    main()
