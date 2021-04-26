@@ -801,7 +801,8 @@ def main():
     else:
         modes = all_modes
 
-    sim_name = os.path.split(args.path)[-1]
+    # last path component, handling trailing '/' and '.' as a path
+    sim_name = os.path.split(os.path.abspath(args.path))[-1]
     output_directory = args.output_directory.format(sim_name = sim_name)
 
     if args.method == "POWER":
