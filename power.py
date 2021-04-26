@@ -58,6 +58,9 @@ OUTPUT_DIR_GLOB = os.path.join("output-????", "*")
 # also an argument to psi4Modes
 PSI4_GLOB = "mp_[Pp]si4"
 
+FROM_TWOPUNCTURES = "FROM_TWOPUNCTURES"
+FROM_QUASILOCALMEASURES = "FROM_QUASILOCALMEASURES"
+
 #-----Function Definitions-----#
 
 def joinDsets(dsets):
@@ -446,7 +449,8 @@ def getPsi4ModesInSim(sim_path, psi4_glob):
 # POWER Method
 # -----------------------------------------------------------------------------
 
-def POWER(sim_path, psi4_glob, radii, modes):
+def POWER(sim_path, psi4_glob, radii, modes, f0 = FROM_TWOPUNCTURES,
+          ADMMass = FROM_TWOPUNCTURES):
     """ Compute gravitational waveform at null infinity using a simple
     extrapolation in 1/r based on the expected fallof in amplitude and phase of
     the strain.
@@ -473,9 +477,11 @@ def POWER(sim_path, psi4_glob, radii, modes):
     simdirs = os.path.join(sim_path, OUTPUT_DIR_GLOB)
 
     meta_name = glob.glob(os.path.join(simdirs, "TwoPunctures.bbh"))[0]
-    f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
+    if f0 == FROM_TWOPUNCTURES:
+        f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
     #Get simulation total mass
-    ADMMass = getADMMassFromTwoPunctureBBH(meta_name)
+    if ADMMass ==  FROM_TWOPUNCTURES:
+        ADMMass = getADMMassFromTwoPunctureBBH(meta_name)
 
     psi4modes = getPsi4ModesInSim(sim_path, psi4_glob)
 
@@ -612,7 +618,9 @@ def POWER(sim_path, psi4_glob, radii, modes):
 # Nakano Method
 # -----------------------------------------------------------------------------
 
-def NakanoKerr(sim_path, psi4_glob, radii, modes):
+def NakanoKerr(sim_path, psi4_glob, radii, modes, f0 = FROM_TWOPUNCTURES,
+               ADMMass = FROM_TWOPUNCTURES, a_final = FROM_QUASILOCALMEASURES,
+               M_final = FROM_QUASILOCALMEASURES):
     """ Compute gravitational waveform at null infinity using the "Kerr"
     variant of the perturbative method developed  by Nakano et al. in
     PhysRevD.91.104022
@@ -645,7 +653,12 @@ def NakanoKerr(sim_path, psi4_glob, radii, modes):
     # M and ADMMass are not identical since "M" is the mass of the final black
     # hole while ADMMass is the total mas of the system. Using both is somewhat
     # inconsistent
-    a, M = getFinalSpinFromQLM(sim_path)
+    if a_final == FROM_QUASILOCALMEASURES or M_final == FROM_QUASILOCALMEASURES:
+        a_M =  getFinalSpinFromQLM(sim_path)
+        if a_final == FROM_QUASILOCALMEASURES:
+            a_final = a_M[0]
+        if M_final == FROM_QUASILOCALMEASURES:
+            M_final = a_M[1]
     meta_name = glob.glob(os.path.join(simdirs, "TwoPunctures.bbh"))[0]
     f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
     ADMMass = getADMMassFromTwoPunctureBBH(meta_name)
@@ -674,7 +687,7 @@ def NakanoKerr(sim_path, psi4_glob, radii, modes):
 
             # TODO: check if expressions are applicable for el < 2 at all or
             # of Nakano's derivation requires el>=2 to begin with
-            A = 1.-(2.*M/radius)
+            A = 1.-(2.*M_final/radius)
             a_1 = radius
             if el < 1:
                 a_2 = 0.
@@ -692,7 +705,7 @@ def NakanoKerr(sim_path, psi4_glob, radii, modes):
                 ar_a = psi4modes.getData(radius, (el+1,em))
                 psi_a = np.column_stack((ar_a[:,0], ar_a[:,1] + 1j * ar_a[:,2]))
                 dt_psi_a = np.column_stack((psi_a[:,0], np.gradient(psi_a[:,1], psi_a[:,0])))
-                B = 2.j*a/(el+1.)**2*np.sqrt((el+3.)*(el-1)*(el+em+1.)*(el-em+1.)/((2.*el+1.)*(2.*el+3.)))
+                B = 2.j*a_final/(el+1.)**2*np.sqrt((el+3.)*(el-1)*(el+em+1.)*(el-em+1.)/((2.*el+1.)*(2.*el+3.)))
             b_1 = 1.
             b_2 = el*(el+3.)/radius
 
@@ -704,7 +717,7 @@ def NakanoKerr(sim_path, psi4_glob, radii, modes):
                 ar_b = psi4modes.getData(radius, (el-1, em))
                 psi_b = np.column_stack((ar_b[:,0], ar_b[:,1] + 1j * ar_b[:,2]))
                 dt_psi_b = np.column_stack((psi_b[:,0], np.gradient(psi_b[:,1], psi_b[:,0])))
-                C = 2.j*a/el**2*np.sqrt((el+2.)*(el-2.)*(el+em)*(el-em)/((2.*el-1.)*(2.*el+1.)))
+                C = 2.j*a_final/el**2*np.sqrt((el+2.)*(el-2.)*(el+em)*(el-em)/((2.*el-1.)*(2.*el+1.)))
             c_1 = 1.
             c_2 = (el-2.)*(el+1.)/radius
 
