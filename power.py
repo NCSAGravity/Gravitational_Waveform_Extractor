@@ -53,6 +53,11 @@ import scipy.interpolate
 import argparse
 import configparser
 
+#-----Module options-----#
+OUTPUT_DIR_GLOB = os.path.join("output-????", "*")
+# also an argument to psi4Modes
+PSI4_GLOB = "mp_[Pp]si4"
+
 #-----Function Definitions-----#
 
 def joinDsets(dsets):
@@ -261,7 +266,7 @@ def angular_momentum(x, q, m, chi1, chi2, LInitNR):
 
 
 def getFinalSpinFromQLM(sim_path):
-    mass_path = sorted(glob.glob(os.path.join(sim_path, "output-????", "*", "quasilocalmeasures-qlm_scalars..asc")))
+    mass_path = sorted(glob.glob(os.path.join(sim_path, OUTPUT_DIR_GLOB, "quasilocalmeasures-qlm_scalars..asc")))
     A_val = np.loadtxt(mass_path[-1])     ## For mass calculation
     M_final = A_val[:,58][-1]
     Sz_final = A_val[:,37][-1]
@@ -343,8 +348,9 @@ def getCutoffFrequencyFromTwoPuncturesBBH(meta_filename):
     return omCutoff
 
 class psi4Modes: # base class for HDF5 and ASCII modes
-    def __init__(self, sim_path):
+    def __init__(self, sim_path, psi4_glob):
         self.sim_path = sim_path
+        self.psi4_glob = psi4_glob
         self.modes = []
         self.radii = []
         self.mapping = {}
@@ -364,9 +370,9 @@ class psi4ModesHDF5(psi4Modes):
 
     sim_path = path to simulation main directory
     """
-    def __init__(self, sim_path):
-        super(psi4ModesHDF5, self).__init__(sim_path)
-        nameglob = os.path.join(sim_path, "output-????", "*", "mp_[Pp]si4.h5")
+    def __init__(self, sim_path, psi4_glob):
+        super(psi4ModesHDF5, self).__init__(sim_path, psi4_glob + ".h5")
+        nameglob = os.path.join(sim_path, OUTPUT_DIR_GLOB, self.psi4_glob)
         fns = glob.glob(nameglob)
         if not fns:
             raise IOError(errno.ENOENT, os.strerror(errno.ENOENT), nameglob)
@@ -387,7 +393,7 @@ class psi4ModesHDF5(psi4Modes):
         self.modes = sorted(modes)
 
     def getData(self, radius, mode):
-        nameglob = os.path.join(self.sim_path, "output-????", "*", "mp_[Pp]si4.h5")
+        nameglob = os.path.join(self.sim_path, OUTPUT_DIR_GLOB, self.psi4_glob)
         return loadHDF5Series(nameglob, self.mapping[(radius, mode)])
 
 class psi4ModesASCII(psi4Modes):
@@ -396,9 +402,9 @@ class psi4ModesASCII(psi4Modes):
 
     sim_path = path to simulation main directory
     """
-    def __init__(self, sim_path):
-        super(psi4ModesASCII, self).__init__(sim_path)
-        nameglob = os.path.join(sim_path, "output-????", "*", "mp_[Pp]si4_*.asc")
+    def __init__(self, sim_path, psi4_glob):
+        super(psi4ModesASCII, self).__init__(sim_path, psi4_glob + "_*.asc")
+        nameglob = os.path.join(sim_path, OUTPUT_DIR_GLOB, self.psi4_glob)
         fns = glob.glob(nameglob)
         if not fns:
             raise IOError(errno.ENOENT, os.strerror(errno.ENOENT), nameglob)
@@ -406,7 +412,7 @@ class psi4ModesASCII(psi4Modes):
         modes = set()
         for fn in fns:
             basefn = os.path.basename(fn)
-            m = re.match(r'^mp_[Pp]si4_l(\d*)_m(-?\d*)_r(\d*\.\d*)\.asc$', basefn)
+            m = re.match(r'.*_l(\d*)_m(-?\d*)_r(\d*\.\d*)\.asc$', basefn)
             if m:
                 radius = float(m.group(3))
                 mode = (int(m.group(1)), int(m.group(2)))
@@ -417,10 +423,10 @@ class psi4ModesASCII(psi4Modes):
         self.modes = sorted(modes)
 
     def getData(self, radius, mode):
-        nameglob = os.path.join(self.sim_path,"output-????", "*", self.mapping[(radius, mode)])
+        nameglob = os.path.join(self.sim_path, OUTPUT_DIR_GLOB, self.mapping[(radius, mode)])
         return loadASCIISeries(nameglob)
 
-def getPsi4ModesInSim(sim_path):
+def getPsi4ModesInSim(sim_path, psi4_glob):
     """
     Find all psi4 modes and radii in sim_path.
 
@@ -428,32 +434,34 @@ def getPsi4ModesInSim(sim_path):
     """
 
     try:
-        return psi4ModesHDF5(sim_path)
+        return psi4ModesHDF5(sim_path, psi4_glob)
     except IOError as e:
         if e.errno != errno.ENOENT:
             raise
 
-    return psi4ModesASCII(sim_path)
+    return psi4ModesASCII(sim_path, psi4_glob)
 
 
 # -----------------------------------------------------------------------------
 # POWER Method
 # -----------------------------------------------------------------------------
 
-def POWER(sim_path, radii, modes):
+def POWER(sim_path, psi4_glob, radii, modes):
     """ Compute gravitational waveform at null infinity using a simple
     extrapolation in 1/r based on the expected fallof in amplitude and phase of
     the strain.
 
-    sim_path is assumed to point to a Simfactory-like directory structure,
-    ie. contain directories output-???? then one more subdirectory then the
-    actual data files mp_[Pp]si4.h5 written by the Multipole thorn.
+    By default sim_path is assumed to point to a Simfactory-like directory
+    structure, ie. contain directories output-???? then one more subdirectory
+    then the actual data files written by the Multipole thorn.
 
     radii is list of floating point detector radii to use in the
     extrapolation.
 
     modes is a Python list of tuples (el,em) for all the modes that should be
     computed.
+
+    psi4_glob is a shell glob that matches the "base" of the files to use.
 
     modes requested but not found in the data file are silently assumed to be
     zero.
@@ -462,14 +470,14 @@ def POWER(sim_path, radii, modes):
     first level is indexed only by None then by the (el,em) mode, ie.
     strains[None][(el,em)] is a numpy array.
     """
-    simdirs = os.path.join(sim_path, "output-????", "*")
+    simdirs = os.path.join(sim_path, OUTPUT_DIR_GLOB)
 
     meta_name = glob.glob(os.path.join(simdirs, "TwoPunctures.bbh"))[0]
     f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
     #Get simulation total mass
     ADMMass = getADMMassFromTwoPunctureBBH(meta_name)
 
-    psi4modes = getPsi4ModesInSim(sim_path)
+    psi4modes = getPsi4ModesInSim(sim_path, psi4_glob)
 
     # Get Psi4
     # TODO: should I instead use the innermost radius to have an actual value
@@ -604,21 +612,23 @@ def POWER(sim_path, radii, modes):
 # Nakano Method
 # -----------------------------------------------------------------------------
 
-def NakanoKerr(sim_path, radii, modes):
+def NakanoKerr(sim_path, psi4_glob, radii, modes):
     """ Compute gravitational waveform at null infinity using the "Kerr"
     variant of the perturbative method developed  by Nakano et al. in
     PhysRevD.91.104022
     https://journals.aps.org/prd/abstract/10.1103/PhysRevD.91.104022 .
 
-    sim_path is assumed to point to a Simfactory-like directory structure,
-    ie. contain directories output-???? then one more subdirectory then the
-    actual data files mp_[Pp]si4.h5 written by the Multipole thorn.
+    By default sim_path is assumed to point to a Simfactory-like directory
+    structure, ie. contain directories output-???? then one more subdirectory
+    then the actual data files written by the Multipole thorn.
 
     radii is list of floating point detector radii to use as starting
     points for the perturbative evolution.
 
     modes is a Python list of tuples (el,em) for all the modes that should be
     computed.
+
+    psi4_glob is a shell glob that matches the "base" of the files to use.
 
     modes requested but not found in the data file are silently assumed to be
     zero.
@@ -628,9 +638,9 @@ def NakanoKerr(sim_path, radii, modes):
     numpy array.
     """
 
-    simdirs = os.path.join(sim_path, "output-????", "*")
+    simdirs = os.path.join(sim_path, OUTPUT_DIR_GLOB)
 
-    psi4modes = getPsi4ModesInSim(sim_path)
+    psi4modes = getPsi4ModesInSim(sim_path, psi4_glob)
 
     # M and ADMMass are not identical since "M" is the mass of the final black
     # hole while ADMMass is the total mas of the system. Using both is somewhat
@@ -785,7 +795,7 @@ def main():
     parser.add_argument("path" , type=dir_path , help="Top level directory of simulation to process")
     args = parser.parse_args()
 
-    modes = getPsi4ModesInSim(args.path)
+    modes = getPsi4ModesInSim(args.path, PSI4_GLOB)
     all_modes = modes.getModes()
     all_radii = modes.getRadii()
     radii = []
@@ -807,11 +817,11 @@ def main():
 
     if args.method == "POWER":
         print("Extrapolating with POWER method...")
-        strains = POWER(args.path, radii, modes)
+        strains = POWER(args.path, PSI4_GLOB, radii, modes)
 
     elif args.method == "Nakano":
         print("Extrapolating with Nakano method...")
-        strains = NakanoKerr(args.path, radii, modes)
+        strains = NakanoKerr(args.path, PSI4_GLOB, radii, modes)
 
     #Create data directories
     # Python version issue: Python2 uses OSError for existing directories,
