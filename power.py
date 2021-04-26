@@ -57,6 +57,8 @@ import configparser
 OUTPUT_DIR_GLOB = os.path.join("output-????", "*")
 # also an argument to psi4Modes
 PSI4_GLOB = "mp_[Pp]si4"
+# JUNK_TIME is the assumed retarded time before junk has passed by a detector
+JUNK_TIME = 50.
 
 FROM_TWOPUNCTURES = "FROM_TWOPUNCTURES"
 FROM_QUASILOCALMEASURES = "FROM_QUASILOCALMEASURES"
@@ -573,7 +575,7 @@ def POWER(sim_path, psi4_glob, radii, modes, f0 = FROM_TWOPUNCTURES,
                 # for some modes (post 2,2) the initial junk can be the
                 # largest amplitude contribution, so w try to skip it
                 # when looking for maxima
-                junk_time = 50.
+                junk_time = JUNK_TIME
                 post_junk_idx_p = amp[i-1][:,0] > junk_time
                 post_junk_idx = amp[i-1][:,0] > junk_time
                 maxargp = np.argmax(amp[i-1][post_junk_idx_p,1])
