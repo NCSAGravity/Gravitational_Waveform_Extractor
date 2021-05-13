@@ -272,9 +272,22 @@ def angular_momentum(x, q, m, chi1, chi2, LInitNR):
 
 def getFinalSpinFromQLM(sim_path):
     mass_path = sorted(glob.glob(os.path.join(sim_path, OUTPUT_DIR_GLOB, "quasilocalmeasures-qlm_scalars..asc")))
+
+    # get columns to read
+    with open(mass_path[-1]) as fh:
+      for line in fh:
+        # CapretIOASCII files have a header like this:
+        # column format: 1:it   2:time  3:data
+        # data columns: 3:qlm_time[0] 4:qlm_time[1] ...
+        if line.startswith("# data columns:"):
+          cols = dict([col.split(":")[::-1] for col in line.split()[3:]])
+          break
+    col_M_final = int(cols["qlm_mass[2]"])-1
+    col_Sz_final = int(cols["qlm_spin[2]"])-1
+
     A_val = np.loadtxt(mass_path[-1])     ## For mass calculation
-    M_final = A_val[:,58][-1]
-    Sz_final = A_val[:,37][-1]
+    M_final = A_val[:,col_M_final][-1]
+    Sz_final = A_val[:,col_Sz_final][-1]
     a_final = Sz_final / M_final
     return a_final, M_final
 
