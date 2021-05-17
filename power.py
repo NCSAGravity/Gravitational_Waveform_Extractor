@@ -444,7 +444,7 @@ class psi4ModesASCII(psi4Modes):
         nameglob = os.path.join(self.sim_path, OUTPUT_DIR_GLOB, self.mapping[(radius, mode)])
         return loadASCIISeries(nameglob)
 
-def getPsi4ModesInSim(sim_path, psi4_glob):
+def getPsi4ModesInSim(sim_path, psi4_glob = PSI4_GLOB):
     """
     Find all psi4 modes and radii in sim_path.
 
@@ -464,7 +464,7 @@ def getPsi4ModesInSim(sim_path, psi4_glob):
 # POWER Method
 # -----------------------------------------------------------------------------
 
-def POWER(sim_path, psi4_glob, radii, modes, f0 = FROM_TWOPUNCTURES,
+def POWER(sim_path, radii, modes, psi4_glob = PSI4_GLOB, f0 = FROM_TWOPUNCTURES,
           ADMMass = FROM_TWOPUNCTURES):
     """ Compute gravitational waveform at null infinity using a simple
     extrapolation in 1/r based on the expected fallof in amplitude and phase of
@@ -634,8 +634,9 @@ def POWER(sim_path, psi4_glob, radii, modes, f0 = FROM_TWOPUNCTURES,
 # Nakano Method
 # -----------------------------------------------------------------------------
 
-def NakanoKerr(sim_path, psi4_glob, radii, modes, f0 = FROM_TWOPUNCTURES,
-               ADMMass = FROM_TWOPUNCTURES, a_final = FROM_QUASILOCALMEASURES,
+def NakanoKerr(sim_path, radii, modes, psi4_glob = PSI4_GLOB,
+               f0 = FROM_TWOPUNCTURES, ADMMass = FROM_TWOPUNCTURES,
+               a_final = FROM_QUASILOCALMEASURES,
                M_final = FROM_QUASILOCALMEASURES):
     """ Compute gravitational waveform at null infinity using the "Kerr"
     variant of the perturbative method developed  by Nakano et al. in
@@ -871,7 +872,7 @@ def main():
     parser.add_argument("path" , type=dir_path , help="Top level directory of simulation to process")
     args = parser.parse_args()
 
-    modes = getPsi4ModesInSim(args.path, PSI4_GLOB)
+    modes = getPsi4ModesInSim(args.path, psi4_glob=PSI4_GLOB )
     all_modes = modes.getModes()
     all_radii = modes.getRadii()
     radii = []
@@ -896,13 +897,13 @@ def main():
 
     if args.method == "POWER":
         print("Extrapolating with POWER method...")
-        strains = POWER(args.path, PSI4_GLOB, radii, modes, f0=f0, ADMMass=M_ADM)
+        strains = POWER(args.path, radii, modes, psi4_glob=PSI4_GLOB, f0=f0, ADMMass=M_ADM)
 
     elif args.method == "Nakano":
         print("Extrapolating with Nakano method...")
         a_final = args.final_spin_parameter
         M_final = args.final_mass
-        strains = NakanoKerr(args.path, PSI4_GLOB, radii, modes, f0=f0, ADMMass=M_ADM,
+        strains = NakanoKerr(args.path, radii, modes, psi4_glob=PSI4_GLOB, f0=f0, ADMMass=M_ADM,
                              a_final=a_final, M_final=M_final)
 
     #Create data directories
