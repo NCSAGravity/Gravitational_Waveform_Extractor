@@ -675,8 +675,10 @@ def NakanoKerr(sim_path, psi4_glob, radii, modes, f0 = FROM_TWOPUNCTURES,
         if M_final == FROM_QUASILOCALMEASURES:
             M_final = a_M[1]
     meta_name = glob.glob(os.path.join(simdirs, "TwoPunctures.bbh"))[0]
-    f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
-    ADMMass = getADMMassFromTwoPunctureBBH(meta_name)
+    if f0 == FROM_TWOPUNCTURES:
+        f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
+    if ADMMass == FROM_TWOPUNCTURES:
+        ADMMass = getADMMassFromTwoPunctureBBH(meta_name)
 
     extrapolated_strains = {}
     for radius in radii:
@@ -814,10 +816,54 @@ def main():
             raise ValueError("Not a list of 2-tuples: %s" %(string))
         return eval(string)
 
+    def cutoff_frequency(string):
+        try:
+            freq = float(string)
+        except ValueError:
+            if string.lower() == "twopunctures":
+                freq = FROM_TWOPUNCTURES
+            else:
+                raise
+        return freq
+
+    def ADM_mass(string):
+        try:
+            mass = float(string)
+        except ValueError:
+            if string.lower() == "twopunctures":
+                mass = FROM_TWOPUNCTURES
+            else:
+                raise
+        return mass
+
+    def final_mass(string):
+        try:
+            mass = float(string)
+        except ValueError:
+            if string.lower() == "quasilocalmeasures" or string.lower() == "qlm":
+                mass = FROM_QUASILOCALMEASURES
+            else:
+                raise
+        return mass
+
+    def final_spin_parameter(string):
+        try:
+            a = float(string)
+        except ValueError:
+            if string.lower() == "quasilocalmeasures" or string.lower() == "qlm":
+                a = FROM_QUASILOCALMEASURES
+            else:
+                raise
+        return a
+
     parser = argparse.ArgumentParser(description='Choose extrapolation method')
     parser.add_argument(      "--method", choices=["POWER" , "Nakano"] , help="Extrapolation method to be used here", default="POWER")
     parser.add_argument('-r', "--radii" , type=set_of_ints , help="Set of detectors to be used, set to 'all' to use all, or an integer to use the innermost few radii, or a list of slices [start11:end1:step1,start2:end2:step2,...].", default=[(0,7,1)])
     parser.add_argument('-m', "--modes" , type=list_of_modes , help="Modes to use, [(l1,m1),(l2,m2),...]. Leave blank to extrapolate over all available modes")
+    parser.add_argument('-f', "--cutoff-frequency" , type=cutoff_frequency , help="Cutoff frequency used for fixed-frequency integration, or 'TwoPunctures' to deduce from TwoPunctures.bbh (the default).", default="twopunctures")
+    parser.add_argument('-M', "--ADM-mass" , type=ADM_mass , help="Total mass of the system used to rescale waveform data. Use 'TwoPunctures' to deduce from TwoPunctures.bbh (the default).", default="twopunctures")
+    parser.add_argument(      "--final-spin-parameter" , type=final_spin_parameter , help="Spin parameter of final black hole. Use 'QuasiLocalMeasures' or 'QLM' to deduce from quasilocalmeasures-qlm_scalars..asc (the default).", default="qlm")
+    parser.add_argument(      "--final-mass" , type=final_mass , help="Mass of final black hole. Use 'QuasiLocalMeasures' or 'QLM' to deduce from quasilocalmeasures-qlm_scalars..asc (the default).", default="qlm")
     parser.add_argument('-d', "--output-directory", type=str, help="Directory to write extrapolated waveforms to.", default=os.path.join("Extrapolated_Strain", "{sim_name}"))
     parser.add_argument('-o', "--output-file", type=str, help="File to write extrapolated waveforms to.", default=None)
     parser.add_argument("path" , type=dir_path , help="Top level directory of simulation to process")
@@ -843,13 +889,19 @@ def main():
     sim_name = os.path.split(os.path.abspath(args.path))[-1]
     output_directory = args.output_directory.format(sim_name = sim_name)
 
+    f0 = args.cutoff_frequency
+    M_ADM = args.ADM_mass
+
     if args.method == "POWER":
         print("Extrapolating with POWER method...")
-        strains = POWER(args.path, PSI4_GLOB, radii, modes)
+        strains = POWER(args.path, PSI4_GLOB, radii, modes, f0=f0, ADMMass=M_ADM)
 
     elif args.method == "Nakano":
         print("Extrapolating with Nakano method...")
-        strains = NakanoKerr(args.path, PSI4_GLOB, radii, modes)
+        a_final = args.final_spin_parameter
+        M_final = args.final_mass
+        strains = NakanoKerr(args.path, PSI4_GLOB, radii, modes, f0=f0, ADMMass=M_ADM,
+                             a_final=a_final, M_final=M_final)
 
     #Create data directories
     # Python version issue: Python2 uses OSError for existing directories,
