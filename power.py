@@ -491,7 +491,8 @@ def POWER(sim_path, psi4_glob, radii, modes, f0 = FROM_TWOPUNCTURES,
     """
     simdirs = os.path.join(sim_path, OUTPUT_DIR_GLOB)
 
-    meta_name = glob.glob(os.path.join(simdirs, "TwoPunctures.bbh"))[0]
+    if f0 == FROM_TWOPUNCTURES or ADMMass ==  FROM_TWOPUNCTURES:
+        meta_name = glob.glob(os.path.join(simdirs, "TwoPunctures.bbh"))[0]
     if f0 == FROM_TWOPUNCTURES:
         f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
     #Get simulation total mass
@@ -674,7 +675,8 @@ def NakanoKerr(sim_path, psi4_glob, radii, modes, f0 = FROM_TWOPUNCTURES,
             a_final = a_M[0]
         if M_final == FROM_QUASILOCALMEASURES:
             M_final = a_M[1]
-    meta_name = glob.glob(os.path.join(simdirs, "TwoPunctures.bbh"))[0]
+    if f0 == FROM_TWOPUNCTURES or ADMMass == FROM_TWOPUNCTURES:
+        meta_name = glob.glob(os.path.join(simdirs, "TwoPunctures.bbh"))[0]
     if f0 == FROM_TWOPUNCTURES:
         f0 = getCutoffFrequencyFromTwoPuncturesBBH(meta_name)
     if ADMMass == FROM_TWOPUNCTURES:
