@@ -605,10 +605,10 @@ def POWER(sim_path, radii, modes, psi4_glob = PSI4_GLOB, f0 = FROM_TWOPUNCTURES,
         A_phase = np.ones_like(radii)
         A_amp = np.ones_like(radii)
 
-        for i in range(1, phase_extrapolation_order+1):
+        for i in range(0, phase_extrapolation_order+1):
             A_phase = np.column_stack((A_phase, np.power(radii, -1*i)))
 
-        for i in range(1, amp_extrapolation_order+1):
+        for i in range(0, amp_extrapolation_order+1):
             A_amp = np.column_stack((A_amp, np.power(radii, -1*i)))
 
         b_phase = np.empty(dtype=radii.dtype, shape=(len(radii), len(t)))
