@@ -239,8 +239,11 @@ def angular_momentum(x, q, m, chi1, chi2, LInitNR):
     j5 = -(2./3.)*e5-4988./945.-656./135. * eta;
     CapitalDelta = (1.-4.*eta)**0.5
 
-    # RH: expression was originally provided by EAH
-    # TODO: get referecen for this from EAH
+    # Eq 4.7 here https://arxiv.org/pdf/1212.5520.pdf Bohe et al.
+    # "Next-to-next-to-leading order spin-orbit effects in the near-zone metric
+    # and precession equations of compact binaries"
+    # Eq. 2.36 of https://arxiv.org/pdf/1111.5378.pdf "The First Law of Binary
+    # Black Hole Mechanics in General Relativity and Post-Newtonian Theory"
     l = (eta/x**(1./2.)*(
         1. +
         x*(3./2. + 1./6.*eta) +
