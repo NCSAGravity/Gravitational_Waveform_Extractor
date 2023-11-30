@@ -602,26 +602,16 @@ def POWER(sim_path, radii, modes, psi4_glob = PSI4_GLOB, f0 = FROM_TWOPUNCTURES,
         phase_extrapolation_order = 1
         amp_extrapolation_order = 2
         radii = np.asarray(radii, dtype=float)
-        A_phase = np.ones_like(radii)
-        A_amp = np.ones_like(radii)
-
-        for i in range(0, phase_extrapolation_order+1):
-            A_phase = np.column_stack((A_phase, np.power(radii, -1*i)))
-
-        for i in range(0, amp_extrapolation_order+1):
-            A_amp = np.column_stack((A_amp, np.power(radii, -1*i)))
 
         b_phase = np.empty(dtype=radii.dtype, shape=(len(radii), len(t)))
         b_amp = np.empty(dtype=radii.dtype, shape=(len(radii), len(t)))
+
         for j in range(len(radii)):
             b_phase[j] = phase[j][:, 1]
             b_amp[j] = amp[j][:, 1]
 
-        x_phase = np.linalg.lstsq(A_phase, b_phase, rcond=-1)[0]
-        radially_extrapolated_phase = x_phase[0]
-
-        x_amp = np.linalg.lstsq(A_amp, b_amp, rcond=-1)[0]
-        radially_extrapolated_amp = x_amp[0]
+        radially_extrapolated_amp=np.polyfit(1/radii,b_amp,amp_extrapolation_order)[-1]
+        radially_extrapolated_phase=np.polyfit(1/radii,b_phase,phase_extrapolation_order)[-1]
 
         radially_extrapolated_h_plus = radially_extrapolated_amp * np.cos(radially_extrapolated_phase)
         radially_extrapolated_h_cross = radially_extrapolated_amp * np.sin(radially_extrapolated_phase)
