@@ -341,13 +341,13 @@ def getCutoffFrequencyFromTwoPuncturesBBH(meta_filename):
     mass1 = float(config['metadata']['initial-bh-puncture-adm-mass1'])
     mass2 = float(config['metadata']['initial-bh-puncture-adm-mass2'])
 
-    angularmomentum1x = position1y * momentum1z - momentum1z * position1y
-    angularmomentum1y = position1z * momentum1x - momentum1x * position1z
-    angularmomentum1z = position1x * momentum1y - momentum1y * position1x
+    angularmomentum1x = position1y * momentum1z - position1z * momentum1y
+    angularmomentum1y = position1z * momentum1x - position1x * momentum1z
+    angularmomentum1z = position1x * momentum1y - position1y * momentum1x
 
-    angularmomentum2x = position2y * momentum2z - momentum2z * position2y
-    angularmomentum2y = position2z * momentum2x - momentum2x * position2z
-    angularmomentum2z = position2x * momentum2y - momentum2y * position2x
+    angularmomentum2x = position2y * momentum2z - position2z * momentum2y
+    angularmomentum2y = position2z * momentum2x - position2x * momentum2z
+    angularmomentum2z = position2x * momentum2y - position2y * momentum2x
 
     angularmomentumx = angularmomentum1x + angularmomentum2x
     angularmomentumy = angularmomentum1y + angularmomentum2y
