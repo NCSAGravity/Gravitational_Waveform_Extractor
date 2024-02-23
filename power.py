@@ -468,7 +468,7 @@ def getPsi4ModesInSim(sim_path, psi4_glob = PSI4_GLOB):
 # -----------------------------------------------------------------------------
 
 def POWER(sim_path, radii, modes, psi4_glob = PSI4_GLOB, f0 = FROM_TWOPUNCTURES,
-          ADMMass = FROM_TWOPUNCTURES):
+          ADMMass = FROM_TWOPUNCTURES, padding = 0.):
     """ Compute gravitational waveform at null infinity using a simple
     extrapolation in 1/r based on the expected fallof in amplitude and phase of
     the strain.
@@ -487,6 +487,8 @@ def POWER(sim_path, radii, modes, psi4_glob = PSI4_GLOB, f0 = FROM_TWOPUNCTURES,
 
     modes requested but not found in the data file are silently assumed to be
     zero.
+
+    padding adds an amount (in time) of 0 padding at the end, for the FFT
 
     Returns a dobule dictionary of column numpy arrays of strains where the
     first level is indexed only by None then by the (el,em) mode, ie.
@@ -519,8 +521,20 @@ def POWER(sim_path, radii, modes, psi4_glob = PSI4_GLOB, f0 = FROM_TWOPUNCTURES,
             #------------------------------------------------
             radius = radii[i]
             mp_psi4 = psi4modes.getData(radius, (el,em))
-            mp_psi4_vars.append(mp_psi4)
 
+            if padding > 0.:
+                # construct a dataset of times after the end of the simulation
+                # with all values being zero
+                dt = mp_psi4[1,0] - mp_psi4[0,0]
+                diff_dt = np.abs(np.diff(mp_psi4[:,0]) - dt)
+                if(np.amax(diff_dt / dt) > 1e-4): # timestep not constant to 1e-4
+                    raise ValueError("Time step not constant")
+                zeros = np.zeros_like(mp_psi4, shape=(int(np.ceil(padding/dt)), mp_psi4.shape[1]))
+                times = mp_psi4[-1,0] + np.arange(1, 1+zeros.shape[0], 1)*dt
+                zeros[:,0] = times
+                mp_psi4 = np.concatenate((mp_psi4, zeros))
+
+            mp_psi4_vars.append(mp_psi4)
 
             #-----------------------------------------
             # Prepare for conversion to strain
@@ -852,6 +866,15 @@ def main():
                 raise
         return a
 
+    def positive(string):
+        try:
+            a = float(string)
+        except ValueError:
+            raise
+        if (a < 0):
+            raise(ValueError("Negative values not allowed"))
+        return a
+
     parser = argparse.ArgumentParser(description='Choose extrapolation method')
     parser.add_argument(      "--method", choices=["POWER" , "Nakano"] , help="Extrapolation method to be used here", default="POWER")
     parser.add_argument('-r', "--radii" , type=set_of_ints , help="Set of detectors to be used, set to 'all' to use all, or an integer to use the innermost few radii, or a list of slices [start11:end1:step1,start2:end2:step2,...].", default=[(0,7,1)])
@@ -862,6 +885,7 @@ def main():
     parser.add_argument(      "--final-mass" , type=final_mass , help="Mass of final black hole. Use 'QuasiLocalMeasures' or 'QLM' to deduce from quasilocalmeasures-qlm_scalars..asc (the default).", default="qlm")
     parser.add_argument('-d', "--output-directory", type=str, help="Directory to write extrapolated waveforms to.", default=os.path.join("Extrapolated_Strain", "{sim_name}"))
     parser.add_argument('-o', "--output-file", type=str, help="File to write extrapolated waveforms to.", default=None)
+    parser.add_argument('-p', "--pad-at-end", type=positive, help="Add 0 values at the end", default=0.)
     parser.add_argument("path" , type=dir_path , help="Top level directory of simulation to process")
     args = parser.parse_args()
 
@@ -887,10 +911,11 @@ def main():
 
     f0 = args.cutoff_frequency
     M_ADM = args.ADM_mass
+    padding = args.pad_at_end
 
     if args.method == "POWER":
         print("Extrapolating with POWER method...")
-        strains = POWER(args.path, radii, modes, psi4_glob=PSI4_GLOB, f0=f0, ADMMass=M_ADM)
+        strains = POWER(args.path, radii, modes, psi4_glob=PSI4_GLOB, f0=f0, ADMMass=M_ADM, padding=padding)
 
     elif args.method == "Nakano":
         print("Extrapolating with Nakano method...")
