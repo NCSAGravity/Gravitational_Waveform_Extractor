@@ -608,7 +608,9 @@ def POWER(sim_path, radii, modes, psi4_glob = PSI4_GLOB, f0 = FROM_TWOPUNCTURES,
                 # when looking for maxima
                 junk_time = JUNK_TIME
                 post_junk_idx_p = amp[i-1][:,0] > junk_time
-                post_junk_idx = amp[i-1][:,0] > junk_time
+                post_junk_idx = amp[i][:,0] > junk_time
+                # data comes from the same simulation, time steps must be identical
+                assert((post_junk_idx_p == post_junk_idx).all())
                 maxargp = np.argmax(amp[i-1][post_junk_idx_p,1])
                 maxarg = np.argmax(amp[i][post_junk_idx,1])
                 phase_shift = round((resampled_phase_vals[post_junk_idx][maxarg] - phase[i-1][post_junk_idx_p][maxargp,1])/(2.*math.pi))*2.*math.pi
