@@ -222,6 +222,11 @@ def myFourierTransformInverse(freq, hf, t0):
     return time, amp
 
 def angular_momentum(x, q, m, chi1, chi2, LInitNR):
+    # x is a scalar but numpy always passes arrays, triggering a warning
+    # further down
+    assert(x.shape == (1,))
+    x = x[0]
+
     eta = q/(1.+q)**2
     m1 = (1.+math.sqrt(1.-4.*eta))/2.
     m2 = m - m1
