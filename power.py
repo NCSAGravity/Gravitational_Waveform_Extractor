@@ -596,7 +596,7 @@ def POWER(sim_path, radii, modes, psi4_glob = PSI4_GLOB, f0 = FROM_TWOPUNCTURES,
         tmax = min([phase[i][-1,0] for i in range(len(phase))])
 
         # smallest timestep in any series
-        dtmin = min([np.amin(np.diff(phase[0][:,0])) for i in range(len(phase))])
+        dtmin = min([np.amin(np.diff(phase[i][:,0])) for i in range(len(phase))])
 
         # uniform, common time
         t = np.arange(tmin, tmax, dtmin)
