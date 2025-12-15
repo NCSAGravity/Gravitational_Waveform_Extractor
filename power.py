@@ -561,6 +561,12 @@ def POWER(sim_path, radii, modes, psi4_glob = PSI4_GLOB, f0 = FROM_TWOPUNCTURES,
 
             hTable = psi4ToStrain(mp_psi4_vars[i], f0)  # table of strain
 
+            # remove padding from output
+            if padding > 0.:
+                inner_mask = hTable[:,0].real < hTable[-1,0].real - padding
+                assert(inner_mask[0]) # only remove bits at the end
+                hTable = hTable[inner_mask,:]
+
             time = hTable[:, 0].real
             h = hTable[:, 1]
             hplus = h.real
